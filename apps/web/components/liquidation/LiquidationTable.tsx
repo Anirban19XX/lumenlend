@@ -3,114 +3,99 @@
 import React, { useState } from 'react';
 import { Card, Badge, Button, Modal, TokenInput } from '@lumenlend/ui';
 import { useLumenLend } from '../../providers/LumenLendProvider';
-import { formatBps, formatTokenAmount, formatUsd, truncateAddress } from '../../lib/formatters';
+import { formatBps, formatTokenAmount, truncateAddress } from '../../lib/formatters';
 
-interface LiquidatableRow {
+interface LookupResult {
   borrower: string;
-  collateralXlm: bigint;
-  debtUsdc: bigint;
-  healthFactor: number;
-  bonusBps: number;
+  isLiquidatable: boolean;
+  healthFactorBps: number;
+  debt: bigint;
+  collateral: bigint;
 }
 
-const mockLiquidatables: LiquidatableRow[] = [
-  {
-    borrower: 'GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN',
-    collateralXlm: 25_000_0000000n, // 25,000 XLM = $3,000
-    debtUsdc: 2_650_0000000n,       // $2,650 USDC => HF = 0.90
-    healthFactor: 0.90,
-    bonusBps: 500,
-  },
-  {
-    borrower: 'GCKAZW2J636R5NYVSD27KND4D5V3ZPQX4NUPP62R7346A2Q344J2US6Q',
-    collateralXlm: 12_500_0000000n, // 12,500 XLM = $1,500
-    debtUsdc: 1_350_0000000n,       // $1,350 USDC => HF = 0.88
-    healthFactor: 0.88,
-    bonusBps: 500,
-  },
-];
-
 export const LiquidationTable: React.FC = () => {
-  const { liquidatePosition, isLoading } = useLumenLend();
-  const [selectedBorrower, setSelectedBorrower] = useState<LiquidatableRow | null>(null);
+  const { liquidatePosition, checkLiquidatable, isLoading } = useLumenLend();
+  const [borrowerInput, setBorrowerInput] = useState('');
+  const [result, setResult] = useState<LookupResult | null>(null);
   const [repayAmount, setRepayAmount] = useState('');
+  const [checking, setChecking] = useState(false);
+
+  const handleCheck = async () => {
+    if (!borrowerInput) return;
+    setChecking(true);
+    try {
+      const res = await checkLiquidatable(borrowerInput);
+      setResult({ borrower: borrowerInput, ...res });
+      setRepayAmount((Number(res.debt) / 20_000_000).toString()); // 50% close factor default
+    } finally {
+      setChecking(false);
+    }
+  };
 
   const handleLiquidate = async () => {
-    if (!selectedBorrower) return;
+    if (!result) return;
     const parsed = BigInt(Math.floor(parseFloat(repayAmount || '0') * 10_000_000));
-    await liquidatePosition(selectedBorrower.borrower, parsed);
-    setSelectedBorrower(null);
+    await liquidatePosition(result.borrower, parsed);
+    setResult(null);
+    setBorrowerInput('');
   };
 
   return (
     <div className="space-y-6">
       <Card variant="glass" padding="none" className="overflow-hidden border-slate-800/80">
         <div className="p-6 border-b border-slate-800/80">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-black text-white tracking-tight">Liquidatable Positions</h3>
-              <p className="text-xs text-slate-400 mt-1">
-                Repay unhealthy loans on Stellar Soroban to seize collateral with a 5% liquidation bonus.
-              </p>
-            </div>
-            <Badge variant="danger">{mockLiquidatables.length} Liquidatable</Badge>
-          </div>
+          <h3 className="text-lg font-black text-white tracking-tight">Check a Position</h3>
+          <p className="text-xs text-slate-400 mt-1">
+            Look up any borrower&apos;s on-chain health factor. Positions below 1.0 can be liquidated
+            for a 5% collateral bonus.
+          </p>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950/60 text-slate-400 font-bold uppercase tracking-wider border-b border-slate-800">
-              <tr>
-                <th className="py-3 px-6">Borrower</th>
-                <th className="py-3 px-6">Collateral (XLM)</th>
-                <th className="py-3 px-6">Outstanding Debt (USDC)</th>
-                <th className="py-3 px-6">Health Factor</th>
-                <th className="py-3 px-6">Bonus</th>
-                <th className="py-3 px-6 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 text-slate-300">
-              {mockLiquidatables.map((row) => (
-                <tr key={row.borrower} className="hover:bg-slate-900/40 transition-colors">
-                  <td className="py-4 px-6 font-mono font-bold text-white">
-                    {truncateAddress(row.borrower, 6, 6)}
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-bold text-white">{formatTokenAmount(row.collateralXlm, 7)}</span> XLM
-                  </td>
-                  <td className="py-4 px-6">
-                    <span className="font-bold text-white">{formatTokenAmount(row.debtUsdc, 7)}</span> USDC
-                  </td>
-                  <td className="py-4 px-6">
-                    <Badge variant="danger">{row.healthFactor.toFixed(2)} HF</Badge>
-                  </td>
-                  <td className="py-4 px-6 font-bold text-emerald-400">
-                    +{formatBps(row.bonusBps)}
-                  </td>
-                  <td className="py-4 px-6 text-right">
-                    <Button
-                      onClick={() => {
-                        setSelectedBorrower(row);
-                        setRepayAmount((Number(row.debtUsdc) / 20_000_000).toString()); // 50% close factor default
-                      }}
-                      variant="danger"
-                      size="sm"
-                    >
-                      Liquidate
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="p-6 space-y-4">
+          <div className="flex gap-3">
+            <input
+              value={borrowerInput}
+              onChange={(e) => setBorrowerInput(e.target.value.trim())}
+              placeholder="Borrower address (G...)"
+              className="flex-1 bg-slate-950/60 border border-slate-800/80 rounded-xl px-4 py-3 text-sm font-mono text-slate-200 outline-none focus:border-cyan-500/50"
+            />
+            <Button onClick={handleCheck} isLoading={checking} disabled={!borrowerInput} variant="primary">
+              Check
+            </Button>
+          </div>
+
+          {result && (
+            <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-2xl text-xs space-y-2 text-slate-400">
+              <div className="flex justify-between">
+                <span>Borrower:</span>
+                <span className="font-mono text-slate-200">{truncateAddress(result.borrower, 6, 6)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Collateral (XLM):</span>
+                <span className="font-bold text-white">{formatTokenAmount(result.collateral, 7)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Outstanding Debt (XLM):</span>
+                <span className="font-bold text-white">{formatTokenAmount(result.debt, 7)}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span>Health Factor:</span>
+                <Badge variant={result.isLiquidatable ? 'danger' : 'safe'}>
+                  {result.healthFactorBps >= 999_999 ? '∞' : (result.healthFactorBps / 10_000).toFixed(2)} HF
+                </Badge>
+              </div>
+              {!result.isLiquidatable && (
+                <p className="text-emerald-400 pt-1">Position is healthy — not liquidatable.</p>
+              )}
+            </div>
+          )}
         </div>
       </Card>
 
-      {/* Liquidation Execution Modal */}
-      {selectedBorrower && (
+      {result?.isLiquidatable && (
         <Modal
-          isOpen={!!selectedBorrower}
-          onClose={() => setSelectedBorrower(null)}
+          isOpen={result.isLiquidatable}
+          onClose={() => setResult(null)}
           title="Execute On-Chain Liquidation"
           maxWidth="md"
         >
@@ -118,26 +103,27 @@ export const LiquidationTable: React.FC = () => {
             <div className="p-4 bg-rose-500/10 border border-rose-500/30 rounded-2xl text-xs space-y-1 text-rose-300">
               <span className="font-bold">Borrower Position Delinquent</span>
               <p className="text-rose-400/80">
-                Health Factor is {selectedBorrower.healthFactor.toFixed(2)} (&lt; 1.0). Maximum close factor allows repaying up to 50% of the loan.
+                Health Factor is {(result.healthFactorBps / 10_000).toFixed(2)} (&lt; 1.0). Maximum close
+                factor allows repaying up to 50% of the loan.
               </p>
             </div>
 
             <TokenInput
-              symbol="USDC"
+              symbol="XLM"
               value={repayAmount}
               onChange={setRepayAmount}
               placeholder="0.0"
-              balance={formatTokenAmount(selectedBorrower.debtUsdc, 7)}
+              balance={formatTokenAmount(result.debt, 7)}
             />
 
             <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-2xl text-xs space-y-2 text-slate-400">
               <div className="flex justify-between">
                 <span>Borrower:</span>
-                <span className="font-mono text-slate-200">{truncateAddress(selectedBorrower.borrower, 6, 6)}</span>
+                <span className="font-mono text-slate-200">{truncateAddress(result.borrower, 6, 6)}</span>
               </div>
               <div className="flex justify-between">
-                <span>Seized Collateral Bonus:</span>
-                <span className="font-bold text-emerald-400">+{formatBps(selectedBorrower.bonusBps)}</span>
+                <span>Liquidation Bonus:</span>
+                <span className="font-bold text-emerald-400">+{formatBps(500)}</span>
               </div>
             </div>
 

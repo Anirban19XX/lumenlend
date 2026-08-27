@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { LiquidationTable } from '../../components/liquidation/LiquidationTable';
+import { AdminRiskPanel } from '../../components/liquidation/AdminRiskPanel';
 
 export default function LiquidationsPage() {
   return (
@@ -13,6 +14,7 @@ export default function LiquidationsPage() {
         </p>
       </div>
 
+      <AdminRiskPanel />
       <LiquidationTable />
     </div>
   );

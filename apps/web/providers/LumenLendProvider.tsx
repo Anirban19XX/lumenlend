@@ -1,6 +1,7 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
+import { LumenLendClient } from '@lumenlend/contracts-client';
 import {
   calculateBorrowCapacity,
   calculateBorrowRate,
@@ -14,12 +15,24 @@ import {
   type UserPosition,
 } from '@lumenlend/shared';
 import { useWallet } from './WalletProvider';
+import { ADMIN_ADDRESS, CONTRACT_ADDRESSES, STELLAR_NETWORK, STELLAR_RPC_URL } from '../lib/constants';
+
+// Single-asset market: collateral and borrow/supply asset are both native XLM.
+const XLM = CONTRACT_ADDRESSES.xlm;
+const XLM_DECIMALS = 7;
+
+const marketConfig = {
+  ...DEFAULT_XLM_USDC_MARKET_CONFIG,
+  marketId: 'XLM-XLM-V1',
+  borrowAsset: DEFAULT_XLM_USDC_MARKET_CONFIG.collateralAsset,
+};
 
 interface LumenLendContextType {
   market: Market;
   userPosition: UserPosition | null;
   protocolStats: ProtocolStats;
   isLoading: boolean;
+  isAdmin: boolean;
   supplyUsdc: (amount: bigint) => Promise<void>;
   withdrawUsdc: (amount: bigint) => Promise<void>;
   depositXlmCollateral: (amount: bigint) => Promise<void>;
@@ -27,225 +40,199 @@ interface LumenLendContextType {
   borrowUsdc: (amount: bigint) => Promise<void>;
   repayUsdc: (amount: bigint) => Promise<void>;
   liquidatePosition: (borrower: string, repayAmount: bigint) => Promise<void>;
+  setLiquidationThresholdBps: (newBps: number) => Promise<void>;
+  checkLiquidatable: (borrower: string) => Promise<{
+    isLiquidatable: boolean;
+    healthFactorBps: number;
+    debt: bigint;
+    collateral: bigint;
+  }>;
   refresh: () => Promise<void>;
 }
 
-const defaultMarket: Market = {
-  config: DEFAULT_XLM_USDC_MARKET_CONFIG,
+const emptyMarket: Market = {
+  config: marketConfig,
   state: {
-    marketId: 'XLM-USDC-V1',
-    totalSupply: 1_250_000_0000000n, // 1,250,000 USDC
-    totalBorrowed: 500_000_0000000n,  // 500,000 USDC
-    totalReserves: 25_000_0000000n,
-    utilizationBps: 4000,             // 40%
-    borrowApyBps: 450,                // 4.5%
-    supplyApyBps: 162,                // 1.62%
-    collateralPriceUsd: 120_000_000n, // $0.12
-    borrowPriceUsd: 1_000_000_000n,   // $1.00
-    lastUpdatedTimestamp: Date.now(),
+    marketId: marketConfig.marketId,
+    totalSupply: 0n,
+    totalBorrowed: 0n,
+    totalReserves: 0n,
+    utilizationBps: 0,
+    borrowApyBps: marketConfig.baseRateBps,
+    supplyApyBps: 0,
+    collateralPriceUsd: 0n,
+    borrowPriceUsd: 0n,
+    lastUpdatedTimestamp: 0,
   },
 };
 
-const defaultStats: ProtocolStats = {
-  totalValueLockedUsd: 4_500_000_000_000n, // $4,500,000 TVL
-  totalSuppliedUsd: 1_250_000_000_000n,
-  totalBorrowedUsd: 500_000_000_000n,
-  totalCollateralUsd: 3_250_000_000_000n,
-  totalReservesUsd: 25_000_000_000n,
-  activeUsersCount: 184,
+const emptyStats: ProtocolStats = {
+  totalValueLockedUsd: 0n,
+  totalSuppliedUsd: 0n,
+  totalBorrowedUsd: 0n,
+  totalCollateralUsd: 0n,
+  totalReservesUsd: 0n,
+  activeUsersCount: 0,
   marketsCount: 1,
 };
 
 const LumenLendContext = createContext<LumenLendContextType | undefined>(undefined);
 
 export const LumenLendProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { isConnected, address } = useWallet();
-  const [market, setMarket] = useState<Market>(defaultMarket);
-  const [protocolStats, setProtocolStats] = useState<ProtocolStats>(defaultStats);
+  const { isConnected, address, connector } = useWallet();
+  const [market, setMarket] = useState<Market>(emptyMarket);
+  const [protocolStats, setProtocolStats] = useState<ProtocolStats>(emptyStats);
   const [userPosition, setUserPosition] = useState<UserPosition | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const calculatePosition = useCallback(
-    (collateral: bigint, supplied: bigint, borrowed: bigint): UserPosition => {
-      const userAddr = address || 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
-      const collateralValueUsd = tokenAmountToUsd(collateral, 7, market.state.collateralPriceUsd);
-      const borrowedValueUsd = tokenAmountToUsd(borrowed, 7, market.state.borrowPriceUsd);
-      const borrowCapacityUsd = calculateBorrowCapacity(collateralValueUsd, market.config.maxLtvBps);
-      const availableToBorrowUsd = borrowCapacityUsd > borrowedValueUsd ? borrowCapacityUsd - borrowedValueUsd : 0n;
-
-      const hf = calculateHealthFactor(
-        collateralValueUsd,
-        borrowedValueUsd,
-        market.config.liquidationThresholdBps
-      );
-
-      return {
-        userAddress: userAddr,
-        marketId: market.config.marketId,
-        suppliedAmount: supplied,
-        borrowedAmount: borrowed,
-        collateralAmount: collateral,
-        collateralValueUsd,
-        borrowedValueUsd,
-        borrowCapacityUsd,
-        availableToBorrowUsd,
-        healthFactorBps: hf.basisPoints,
-        isLiquidatable: hf.status === 'liquidatable',
-        lastUpdated: Date.now(),
-      };
-    },
-    [address, market]
+  const client = useMemo(
+    () =>
+      new LumenLendClient({
+        network: STELLAR_NETWORK,
+        rpcUrl: STELLAR_RPC_URL,
+        contracts: CONTRACT_ADDRESSES,
+      }),
+    []
   );
 
+  // Reads need a real existing account to build the simulated tx envelope; fall back to
+  // the protocol admin address before a wallet is connected.
+  const viewerAddress = address || ADMIN_ADDRESS;
+  const isAdmin = Boolean(address && ADMIN_ADDRESS && address === ADMIN_ADDRESS);
+
+  const refresh = useCallback(async () => {
+    if (!viewerAddress) return;
+    setIsLoading(true);
+    try {
+      const [marketStateRaw, price] = await Promise.all([
+        client.lendingPool.getMarketState(XLM, viewerAddress),
+        client.oracleManager.getPrice(XLM, viewerAddress),
+      ]);
+
+      const totalSupply = BigInt(marketStateRaw?.total_supplied ?? 0);
+      const totalBorrowed = BigInt(marketStateRaw?.total_borrowed ?? 0);
+      const totalReserves = BigInt(marketStateRaw?.total_reserves ?? 0);
+      const utilizationBps = calculateUtilization(totalBorrowed, totalSupply);
+      const borrowApyBps = calculateBorrowRate(utilizationBps, marketConfig);
+      const supplyApyBps = calculateSupplyRate(borrowApyBps, utilizationBps, marketConfig.reserveFactorBps);
+
+      const nextMarket: Market = {
+        config: marketConfig,
+        state: {
+          marketId: marketConfig.marketId,
+          totalSupply,
+          totalBorrowed,
+          totalReserves,
+          utilizationBps,
+          borrowApyBps,
+          supplyApyBps,
+          collateralPriceUsd: price,
+          borrowPriceUsd: price,
+          lastUpdatedTimestamp: Date.now(),
+        },
+      };
+      setMarket(nextMarket);
+
+      const totalSuppliedUsd = tokenAmountToUsd(totalSupply, XLM_DECIMALS, price);
+      const totalBorrowedUsd = tokenAmountToUsd(totalBorrowed, XLM_DECIMALS, price);
+      setProtocolStats({
+        totalValueLockedUsd: totalSuppliedUsd,
+        totalSuppliedUsd,
+        totalBorrowedUsd,
+        totalCollateralUsd: totalSuppliedUsd,
+        totalReservesUsd: tokenAmountToUsd(totalReserves, XLM_DECIMALS, price),
+        activeUsersCount: 0,
+        marketsCount: 1,
+      });
+
+      if (isConnected && address) {
+        const [userPosRaw, collateral] = await Promise.all([
+          client.lendingPool.getUserPosition(address, XLM, viewerAddress),
+          client.collateralVault.getCollateral(address, viewerAddress),
+        ]);
+
+        const suppliedAmount = BigInt(userPosRaw?.supplied_shares ?? 0);
+        const borrowedAmount = BigInt(userPosRaw?.principal_borrowed ?? 0);
+        const collateralValueUsd = tokenAmountToUsd(collateral, XLM_DECIMALS, price);
+        const borrowedValueUsd = tokenAmountToUsd(borrowedAmount, XLM_DECIMALS, price);
+        const borrowCapacityUsd = calculateBorrowCapacity(collateralValueUsd, marketConfig.maxLtvBps);
+        const availableToBorrowUsd = borrowCapacityUsd > borrowedValueUsd ? borrowCapacityUsd - borrowedValueUsd : 0n;
+        const hf = calculateHealthFactor(collateralValueUsd, borrowedValueUsd, marketConfig.liquidationThresholdBps);
+
+        setUserPosition({
+          userAddress: address,
+          marketId: marketConfig.marketId,
+          suppliedAmount,
+          borrowedAmount,
+          collateralAmount: collateral,
+          collateralValueUsd,
+          borrowedValueUsd,
+          borrowCapacityUsd,
+          availableToBorrowUsd,
+          healthFactorBps: hf.basisPoints,
+          isLiquidatable: hf.status === 'liquidatable',
+          lastUpdated: Date.now(),
+        });
+      } else {
+        setUserPosition(null);
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [client, viewerAddress, isConnected, address]);
+
   useEffect(() => {
-    if (isConnected && address) {
-      // Initialize starter position for connected demo account
-      setUserPosition(calculatePosition(10_000_0000000n, 500_0000000n, 300_0000000n));
-    } else {
-      setUserPosition(null);
-    }
-  }, [isConnected, address, calculatePosition]);
+    refresh();
+  }, [refresh]);
 
-  const refresh = async () => {
-    setIsLoading(true);
-    try {
-      // Re-calculate market utilization and interest APYs
-      const util = calculateUtilization(market.state.totalBorrowed, market.state.totalSupply);
-      const bRate = calculateBorrowRate(util, market.config);
-      const sRate = calculateSupplyRate(bRate, util, market.config.reserveFactorBps);
-
-      setMarket((prev) => ({
-        ...prev,
-        state: {
-          ...prev.state,
-          utilizationBps: util,
-          borrowApyBps: bRate,
-          supplyApyBps: sRate,
-        },
-      }));
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const supplyUsdc = async (amount: bigint) => {
-    setIsLoading(true);
-    try {
-      setMarket((prev) => ({
-        ...prev,
-        state: {
-          ...prev.state,
-          totalSupply: prev.state.totalSupply + amount,
-        },
-      }));
-
-      if (userPosition) {
-        setUserPosition((prev) =>
-          prev ? calculatePosition(prev.collateralAmount, prev.suppliedAmount + amount, prev.borrowedAmount) : null
-        );
+  const withWallet = useCallback(
+    async (action: () => Promise<unknown>) => {
+      if (!address || !connector) throw new Error('Wallet not connected');
+      setIsLoading(true);
+      try {
+        await action();
+        await refresh();
+      } finally {
+        setIsLoading(false);
       }
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+    [address, connector, refresh]
+  );
 
-  const withdrawUsdc = async (amount: bigint) => {
-    setIsLoading(true);
-    try {
-      setMarket((prev) => ({
-        ...prev,
-        state: {
-          ...prev.state,
-          totalSupply: prev.state.totalSupply - amount,
-        },
-      }));
+  const supplyUsdc = (amount: bigint) =>
+    withWallet(() => client.lendingPool.supply(address!, XLM, amount, connector!));
+  const withdrawUsdc = (amount: bigint) =>
+    withWallet(() => client.lendingPool.withdraw(address!, XLM, amount, connector!));
+  const borrowUsdc = (amount: bigint) =>
+    withWallet(() => client.lendingPool.borrow(address!, XLM, amount, connector!));
+  const repayUsdc = (amount: bigint) =>
+    withWallet(() => client.lendingPool.repay(address!, XLM, amount, connector!));
+  const depositXlmCollateral = (amount: bigint) =>
+    withWallet(() => client.collateralVault.depositCollateral(address!, amount, connector!));
+  const withdrawXlmCollateral = (amount: bigint) =>
+    withWallet(() => client.collateralVault.withdrawCollateral(address!, amount, connector!));
+  const liquidatePosition = (borrower: string, repayAmount: bigint) =>
+    withWallet(() => client.liquidationEngine.liquidate(address!, borrower, repayAmount, connector!));
+  const setLiquidationThresholdBps = (newBps: number) =>
+    withWallet(() => client.collateralVault.setLiquidationThreshold(address!, newBps, connector!));
 
-      if (userPosition) {
-        setUserPosition((prev) =>
-          prev ? calculatePosition(prev.collateralAmount, prev.suppliedAmount - amount, prev.borrowedAmount) : null
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const depositXlmCollateral = async (amount: bigint) => {
-    setIsLoading(true);
-    try {
-      if (userPosition) {
-        setUserPosition((prev) =>
-          prev ? calculatePosition(prev.collateralAmount + amount, prev.suppliedAmount, prev.borrowedAmount) : null
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const withdrawXlmCollateral = async (amount: bigint) => {
-    setIsLoading(true);
-    try {
-      if (userPosition) {
-        setUserPosition((prev) =>
-          prev ? calculatePosition(prev.collateralAmount - amount, prev.suppliedAmount, prev.borrowedAmount) : null
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const borrowUsdc = async (amount: bigint) => {
-    setIsLoading(true);
-    try {
-      setMarket((prev) => ({
-        ...prev,
-        state: {
-          ...prev.state,
-          totalBorrowed: prev.state.totalBorrowed + amount,
-        },
-      }));
-
-      if (userPosition) {
-        setUserPosition((prev) =>
-          prev ? calculatePosition(prev.collateralAmount, prev.suppliedAmount, prev.borrowedAmount + amount) : null
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const repayUsdc = async (amount: bigint) => {
-    setIsLoading(true);
-    try {
-      setMarket((prev) => ({
-        ...prev,
-        state: {
-          ...prev.state,
-          totalBorrowed: prev.state.totalBorrowed - amount,
-        },
-      }));
-
-      if (userPosition) {
-        setUserPosition((prev) =>
-          prev ? calculatePosition(prev.collateralAmount, prev.suppliedAmount, prev.borrowedAmount - amount) : null
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const liquidatePosition = async (borrower: string, repayAmount: bigint) => {
-    setIsLoading(true);
-    try {
-      // Execute liquidation logic
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const checkLiquidatable = useCallback(
+    async (borrower: string) => {
+      const [liquidatable, healthFactor, position, collateral] = await Promise.all([
+        client.liquidationEngine.isLiquidatable(borrower, viewerAddress),
+        client.collateralVault.getHealthFactor(borrower, viewerAddress),
+        client.lendingPool.getUserPosition(borrower, XLM, viewerAddress),
+        client.collateralVault.getCollateral(borrower, viewerAddress),
+      ]);
+      return {
+        isLiquidatable: liquidatable,
+        healthFactorBps: Number(healthFactor > 999_999n ? 999_999n : healthFactor),
+        debt: BigInt(position?.principal_borrowed ?? 0),
+        collateral,
+      };
+    },
+    [client, viewerAddress]
+  );
 
   return (
     <LumenLendContext.Provider
@@ -254,6 +241,7 @@ export const LumenLendProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         userPosition,
         protocolStats,
         isLoading,
+        isAdmin,
         supplyUsdc,
         withdrawUsdc,
         depositXlmCollateral,
@@ -261,6 +249,8 @@ export const LumenLendProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         borrowUsdc,
         repayUsdc,
         liquidatePosition,
+        setLiquidationThresholdBps,
+        checkLiquidatable,
         refresh,
       }}
     >
