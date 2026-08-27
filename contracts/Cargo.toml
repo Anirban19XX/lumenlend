@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = [
+    "lending-pool",
+    "collateral-vault",
+    "liquidation-engine",
+    "oracle-manager",
+    "interest-rate-model",
+]

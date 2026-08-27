@@ -1,0 +1,23 @@
+{
+  "name": "@lumenlend/stellar",
+  "version": "0.1.0",
+  "description": "Stellar & Soroban wallet and RPC integration abstractions for LumenLend",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@stellar/stellar-sdk": "^13.0.0",
+    "@stellar/freighter-api": "^6.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5",
+    "rimraf": "^6.0.1"
+  }
+}

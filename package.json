@@ -1,0 +1,37 @@
+{
+  "name": "lumenlend-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Production-grade Stellar-native lending protocol built on Soroban",
+  "license": "MIT",
+  "author": "LumenLend Protocol",
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "packageManager": "pnpm@10.16.1",
+  "scripts": {
+    "build": "pnpm -r --filter=!./contracts/* run build",
+    "dev:web": "pnpm --filter @lumenlend/web dev",
+    "dev:indexer": "pnpm --filter @lumenlend/indexer dev",
+    "test": "pnpm -r run test",
+    "test:integration": "pnpm --filter @lumenlend/tests test",
+    "lint": "pnpm -r run lint",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md,rs}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,json,md,rs}\"",
+    "typecheck": "pnpm -r run typecheck",
+    "build:contracts": "tsx scripts/build-contracts.ts",
+    "deploy:testnet": "tsx scripts/deploy-contracts.ts --network testnet",
+    "initialize:market": "tsx scripts/initialize-market.ts --network testnet",
+    "generate:bindings": "tsx scripts/generate-bindings.ts",
+    "setup:testnet": "tsx scripts/setup-testnet.ts",
+    "clean": "pnpm -r run clean"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "prettier": "^3.5.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3",
+    "vitest": "^3.0.5"
+  }
+}
