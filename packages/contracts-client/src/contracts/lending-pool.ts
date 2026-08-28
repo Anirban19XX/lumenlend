@@ -132,4 +132,22 @@ export class LendingPoolClient {
       returnValue: (txResult as any).returnValue ? scValToNative((txResult as any).returnValue) : undefined,
     };
   }
+
+  async getMarketState(assetAddress: string, viewerAddress: string): Promise<any> {
+    return this.txService.simulateReadCall({
+      contractId: this.contractId,
+      method: 'get_market_state',
+      args: [new Address(assetAddress).toScVal()],
+      sourceAddress: viewerAddress,
+    });
+  }
+
+  async getUserPosition(userAddress: string, assetAddress: string, viewerAddress: string): Promise<any> {
+    return this.txService.simulateReadCall({
+      contractId: this.contractId,
+      method: 'get_user_position',
+      args: [new Address(userAddress).toScVal(), new Address(assetAddress).toScVal()],
+      sourceAddress: viewerAddress,
+    });
+  }
 }

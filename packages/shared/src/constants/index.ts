@@ -10,7 +10,7 @@ export const DEFAULT_XLM_ASSET: Asset = {
   symbol: 'XLM',
   name: 'Stellar Lumens',
   decimals: 7,
-  contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCXLM',
+  contractId: 'CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC',
 };
 
 export const DEFAULT_USDC_ASSET: Asset = {

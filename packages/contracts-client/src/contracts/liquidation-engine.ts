@@ -38,4 +38,14 @@ export class LiquidationEngineClient {
       returnValue: (txResult as any).returnValue ? scValToNative((txResult as any).returnValue) : undefined,
     };
   }
+
+  async isLiquidatable(borrowerAddress: string, viewerAddress: string): Promise<boolean> {
+    const result = await this.txService.simulateReadCall({
+      contractId: this.contractId,
+      method: 'is_liquidatable',
+      args: [new Address(borrowerAddress).toScVal()],
+      sourceAddress: viewerAddress,
+    });
+    return Boolean(result);
+  }
 }

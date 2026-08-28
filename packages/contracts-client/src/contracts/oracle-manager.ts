@@ -39,4 +39,14 @@ export class OracleManagerClient {
       returnValue: (txResult as any).returnValue ? scValToNative((txResult as any).returnValue) : undefined,
     };
   }
+
+  async getPrice(assetAddress: string, viewerAddress: string): Promise<bigint> {
+    const result = await this.txService.simulateReadCall({
+      contractId: this.contractId,
+      method: 'get_price',
+      args: [new Address(assetAddress).toScVal()],
+      sourceAddress: viewerAddress,
+    });
+    return BigInt(result as any);
+  }
 }

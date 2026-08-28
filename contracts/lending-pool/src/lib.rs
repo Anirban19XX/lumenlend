@@ -51,7 +51,19 @@ pub enum DataKey {
     UserPosition(Address, Address), // (User, Asset)
 }
 
+#[soroban_sdk::contractclient(name = "CollateralVaultPeerClient")]
+pub trait CollateralVaultPeer {
+    fn can_borrow(env: Env, user: Address, current_debt: i128, additional_borrow_amount: i128) -> bool;
+}
+
+#[soroban_sdk::contractclient(name = "RateModelPeerClient")]
+pub trait RateModelPeer {
+    fn get_borrow_rate(env: Env, total_borrowed: i128, total_supplied: i128) -> i128;
+}
+
 const SCALE: i128 = 1_000_000_000; // 1e9 fixed-point precision
+const BPS_SCALE: i128 = 10_000;
+const SECONDS_PER_YEAR: i128 = 31_536_000;
 
 #[contract]
 pub struct LendingPool;
@@ -243,14 +255,7 @@ impl LendingPool {
             return Err(Error::InsufficientLiquidity);
         }
 
-        // Check health factor / borrowing capacity with Collateral Vault
-        let vault_addr: Address = env
-            .storage()
-            .instance()
-            .get(&DataKey::CollateralVault)
-            .ok_or(Error::NotInitialized)?;
-
-        // Update user debt balance with index tracking
+        // Load and accrue the user's existing debt before checking borrowing capacity.
         let user_key = DataKey::UserPosition(user.clone(), asset.clone());
         let mut user_pos: UserLendingPosition = env
             .storage()
@@ -263,11 +268,24 @@ impl LendingPool {
                 last_updated: env.ledger().timestamp(),
             });
 
-        // If user already had debt, accrue interest on user's debt
         if user_pos.principal_borrowed > 0 {
             let current_debt = Self::calculate_user_debt(&user_pos, state.borrow_index)?;
             user_pos.principal_borrowed = current_debt;
         }
+
+        // Check borrowing capacity against real collateral value with Collateral Vault.
+        // `current_debt` is passed in (rather than fetched by the vault via a call back
+        // into this contract) since Soroban disallows cross-contract call cycles.
+        let vault_addr: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::CollateralVault)
+            .ok_or(Error::NotInitialized)?;
+        let vault_client = CollateralVaultPeerClient::new(&env, &vault_addr);
+        if !vault_client.can_borrow(&user, &user_pos.principal_borrowed, &amount) {
+            return Err(Error::InsufficientCollateral);
+        }
+
         user_pos.principal_borrowed = user_pos
             .principal_borrowed
             .checked_add(amount)
@@ -300,14 +318,68 @@ impl LendingPool {
     /// Repay outstanding borrowed debt.
     pub fn repay(env: Env, user: Address, asset: Address, amount: i128) -> Result<i128, Error> {
         user.require_auth();
+        Self::repay_internal(&env, &user, &user, &asset, amount)
+    }
+
+    /// Repay a borrower's debt on their behalf (permissionless repay-for, used by
+    /// liquidation-engine but callable by anyone — tokens are pulled from `payer`).
+    pub fn liquidation_repay(
+        env: Env,
+        payer: Address,
+        borrower: Address,
+        asset: Address,
+        amount: i128,
+    ) -> i128 {
+        payer.require_auth();
+        Self::repay_internal(&env, &payer, &borrower, &asset, amount).unwrap()
+    }
+
+    /// Read market state for an asset.
+    pub fn get_market_state(env: Env, asset: Address) -> Result<MarketState, Error> {
+        Self::get_market_state_internal(&env, &asset)
+    }
+
+    /// Read user position for an asset.
+    pub fn get_user_position(
+        env: Env,
+        user: Address,
+        asset: Address,
+    ) -> UserLendingPosition {
+        let user_key = DataKey::UserPosition(user, asset);
+        env.storage()
+            .persistent()
+            .get(&user_key)
+            .unwrap_or(UserLendingPosition {
+                supplied_shares: 0,
+                principal_borrowed: 0,
+                borrow_index: SCALE,
+                last_updated: env.ledger().timestamp(),
+            })
+    }
+
+    // Helper functions
+    fn get_market_state_internal(env: &Env, asset: &Address) -> Result<MarketState, Error> {
+        env.storage()
+            .persistent()
+            .get(&DataKey::Market(asset.clone()))
+            .ok_or(Error::MarketNotFound)
+    }
+
+    fn repay_internal(
+        env: &Env,
+        payer: &Address,
+        borrower: &Address,
+        asset: &Address,
+        amount: i128,
+    ) -> Result<i128, Error> {
         if amount <= 0 {
             return Err(Error::InvalidAmount);
         }
 
-        let mut state = Self::get_market_state_internal(&env, &asset)?;
-        Self::accrue_interest_internal(&env, &mut state)?;
+        let mut state = Self::get_market_state_internal(env, asset)?;
+        Self::accrue_interest_internal(env, &mut state)?;
 
-        let user_key = DataKey::UserPosition(user.clone(), asset.clone());
+        let user_key = DataKey::UserPosition(borrower.clone(), asset.clone());
         let mut user_pos: UserLendingPosition = env
             .storage()
             .persistent()
@@ -315,15 +387,11 @@ impl LendingPool {
             .ok_or(Error::InsufficientLiquidity)?;
 
         let total_debt = Self::calculate_user_debt(&user_pos, state.borrow_index)?;
-        let repay_actual = if amount > total_debt {
-            total_debt
-        } else {
-            amount
-        };
+        let repay_actual = if amount > total_debt { total_debt } else { amount };
 
-        // Transfer tokens from user to pool
-        let token_client = token::Client::new(&env, &asset);
-        token_client.transfer(&user, &env.current_contract_address(), &repay_actual);
+        // Transfer tokens from payer to pool
+        let token_client = token::Client::new(env, asset);
+        token_client.transfer(payer, &env.current_contract_address(), &repay_actual);
 
         user_pos.principal_borrowed = total_debt
             .checked_sub(repay_actual)
@@ -339,45 +407,14 @@ impl LendingPool {
         env.storage().persistent().set(&user_key, &user_pos);
         env.storage()
             .persistent()
-            .set(&DataKey::Market(asset), &state);
+            .set(&DataKey::Market(asset.clone()), &state);
 
         env.events().publish(
-            (Symbol::new(&env, "repay"), user),
+            (Symbol::new(env, "repay"), borrower.clone()),
             (repay_actual, user_pos.principal_borrowed),
         );
 
         Ok(user_pos.principal_borrowed)
-    }
-
-    /// Read market state for an asset.
-    pub fn get_market_state(env: Env, asset: Address) -> Result<MarketState, Error> {
-        Self::get_market_state_internal(&env, &asset)
-    }
-
-    /// Read user position for an asset.
-    pub fn get_user_position(
-        env: Env,
-        user: Address,
-        asset: Address,
-    ) -> Result<UserLendingPosition, Error> {
-        let user_key = DataKey::UserPosition(user, asset);
-        env.storage()
-            .persistent()
-            .get(&user_key)
-            .unwrap_or(Ok(UserLendingPosition {
-                supplied_shares: 0,
-                principal_borrowed: 0,
-                borrow_index: SCALE,
-                last_updated: env.ledger().timestamp(),
-            }))
-    }
-
-    // Helper functions
-    fn get_market_state_internal(env: &Env, asset: &Address) -> Result<MarketState, Error> {
-        env.storage()
-            .persistent()
-            .get(&DataKey::Market(asset.clone()))
-            .ok_or(Error::MarketNotFound)
     }
 
     fn accrue_interest_internal(env: &Env, state: &mut MarketState) -> Result<(), Error> {
@@ -388,12 +425,22 @@ impl LendingPool {
             return Ok(());
         }
 
-        // Example kinked interest calculation placeholder (10% APR / seconds per year)
-        // 10% per year = ~3.17e-9 per sec. Scaled by 1e9 => 3 index delta per 1000 sec
-        let seconds_per_year: u64 = 31_536_000;
-        let rate_per_sec = (100_000_000i128) / (seconds_per_year as i128); // 10% scaled by 1e9
+        let rate_model_addr: Address = env
+            .storage()
+            .instance()
+            .get(&DataKey::RateModel)
+            .ok_or(Error::NotInitialized)?;
+        let rate_model_client = RateModelPeerClient::new(env, &rate_model_addr);
+        let borrow_rate_bps = rate_model_client.get_borrow_rate(&state.total_borrowed, &state.total_supplied);
+
+        // Convert annual bps rate to a per-elapsed-second interest factor, scaled by 1e9.
+        let rate_per_sec = borrow_rate_bps
+            .checked_mul(SCALE)
+            .ok_or(Error::Overflow)?
+            / BPS_SCALE
+            / SECONDS_PER_YEAR;
         let interest_factor = rate_per_sec.checked_mul(time_delta as i128).unwrap_or(0);
-        
+
         let new_borrow_index = state
             .borrow_index
             .checked_add(
