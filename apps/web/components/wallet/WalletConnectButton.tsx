@@ -1,48 +1,85 @@
 'use client';
 
 import React, { useState } from 'react';
+import { AlertCircle, Check, Copy, LogOut, Wallet } from 'lucide-react';
+import { Badge, Button, Modal } from '@lumenlend/ui';
 import { useWallet } from '../../providers/WalletProvider';
 import { truncateAddress } from '../../lib/formatters';
 
 export const WalletConnectButton: React.FC = () => {
-  const { isConnected, address, connect, disconnect, network, isConnecting } = useWallet();
+  const { isConnected, address, connect, disconnect, network, isConnecting, error } = useWallet();
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
+
+  const isRejected = error?.toLowerCase().includes('reject') || error?.toLowerCase().includes('denied');
+
+  const copyAddress = async () => {
+    if (!address) return;
+    await navigator.clipboard.writeText(address);
+    setIsCopied(true);
+    window.setTimeout(() => setIsCopied(false), 1500);
+  };
 
   if (isConnected && address) {
     return (
       <div className="flex items-center gap-2">
-        <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 bg-slate-900/80 border border-slate-800 rounded-xl text-xs font-semibold text-slate-300">
+        <Badge variant="safe" size="sm" className="hidden sm:inline-flex gap-1.5">
           <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
           <span className="capitalize">{network}</span>
-        </div>
+        </Badge>
 
-        <button
-          onClick={disconnect}
-          className="flex items-center gap-2 px-4 py-2 bg-slate-900 hover:bg-slate-800 border border-slate-700/80 rounded-xl text-xs font-bold text-white transition-all shadow-lg active:scale-95"
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => setIsDetailsOpen(true)}
+          title={`Connected wallet: ${address}`}
+          aria-label={`View connected wallet ${truncateAddress(address)}`}
+          leftIcon={<Wallet className="h-4 w-4" aria-hidden="true" />}
         >
-          <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-cyan-400 to-blue-500" />
           <span>{truncateAddress(address)}</span>
-        </button>
+        </Button>
+
+        <Modal isOpen={isDetailsOpen} onClose={() => setIsDetailsOpen(false)} title="Wallet connected" maxWidth="sm">
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Badge variant="safe" size="sm">Connected</Badge>
+              <span className="text-sm capitalize text-slate-400">{network}</span>
+            </div>
+            <div>
+              <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-slate-500">Stellar address</p>
+              <p className="break-all rounded-xl border border-slate-800 bg-slate-950/60 p-3 font-mono text-xs text-slate-300">{address}</p>
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={copyAddress} leftIcon={isCopied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}>
+                {isCopied ? 'Copied' : 'Copy address'}
+              </Button>
+              <Button variant="danger" size="sm" onClick={async () => { await disconnect(); setIsDetailsOpen(false); }} leftIcon={<LogOut className="h-4 w-4" />}>
+                Disconnect
+              </Button>
+            </div>
+          </div>
+        </Modal>
       </div>
     );
   }
 
-  return (
-    <button
-      onClick={connect}
-      disabled={isConnecting}
-      className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-extrabold rounded-xl shadow-lg shadow-cyan-500/25 transition-all active:scale-95 disabled:opacity-50"
-    >
-      {isConnecting ? (
-        <span>Connecting...</span>
-      ) : (
-        <>
-          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="2" y="4" width="20" height="16" rx="4" />
-            <path d="M16 12h.01" />
-          </svg>
-          <span>Connect Freighter</span>
-        </>
-      )}
-    </button>
-  );
+  if (isConnecting) {
+    return <Button isLoading size="sm" aria-live="polite">Connecting...</Button>;
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center gap-2">
+        <Badge variant="danger" size="sm" title={error}>
+          <AlertCircle className="mr-1 h-3.5 w-3.5" aria-hidden="true" />
+          {isRejected ? 'Connection rejected' : 'Connection failed'}
+        </Badge>
+        <Button variant="outline" size="sm" onClick={connect} leftIcon={<Wallet className="h-4 w-4" aria-hidden="true" />}>
+          Try again
+        </Button>
+      </div>
+    );
+  }
+
+  return <Button size="sm" onClick={connect} leftIcon={<Wallet className="h-4 w-4" aria-hidden="true" />}>Connect Freighter</Button>;
 };
