@@ -2,19 +2,23 @@
 
 import React from 'react';
 import { Card, Badge, Button } from '@lumenlend/ui';
+import type { Market } from '@lumenlend/shared';
 import { useLumenLend } from '../../providers/LumenLendProvider';
 import { formatBps, formatTokenAmount, formatUsd } from '../../lib/formatters';
 
 interface MarketCardProps {
   onSupplyClick: () => void;
   onBorrowClick: () => void;
+  market?: Market;
 }
 
 export const MarketCard: React.FC<MarketCardProps> = ({
   onSupplyClick,
   onBorrowClick,
+  market: marketOverride,
 }) => {
-  const { market } = useLumenLend();
+  const { market: connectedMarket } = useLumenLend();
+  const market = marketOverride || connectedMarket;
   const utilPercent = market.state.utilizationBps / 100;
 
   return (
