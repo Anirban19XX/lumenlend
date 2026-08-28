@@ -5,7 +5,7 @@
   "description": "Production-grade Next.js web application for LumenLend Stellar lending protocol",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm --filter @lumenlend/shared --filter @lumenlend/stellar --filter @lumenlend/ui --filter @lumenlend/contracts-client run build && next build",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
