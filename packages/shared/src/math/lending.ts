@@ -9,6 +9,7 @@ export function calculateUtilization(
   totalBorrowed: bigint,
   totalSupply: bigint
 ): number {
+  if (totalBorrowed < 0n || totalSupply < 0n) throw new Error('Negative amount in calculateUtilization');
   if (totalSupply === 0n) return 0;
   if (totalBorrowed >= totalSupply) return 10_000;
   return Number((totalBorrowed * BPS_DIVISOR) / totalSupply);
@@ -22,6 +23,13 @@ export function calculateBorrowRate(
   config: Pick<MarketConfig, 'baseRateBps' | 'optimalUtilizationBps' | 'slope1Bps' | 'slope2Bps'>
 ): number {
   const { baseRateBps, optimalUtilizationBps, slope1Bps, slope2Bps } = config;
+  if (!Number.isSafeInteger(utilizationBps) || utilizationBps < 0 || utilizationBps > 10_000) {
+    throw new Error('Invalid utilization in calculateBorrowRate');
+  }
+  if ([baseRateBps, optimalUtilizationBps, slope1Bps, slope2Bps].some((value) => !Number.isSafeInteger(value) || value < 0)) {
+    throw new Error('Invalid rate configuration');
+  }
+  if (optimalUtilizationBps > 10_000) throw new Error('Invalid optimal utilization');
 
   if (utilizationBps <= optimalUtilizationBps) {
     if (optimalUtilizationBps === 0) return baseRateBps;
@@ -43,6 +51,11 @@ export function calculateSupplyRate(
   utilizationBps: number,
   reserveFactorBps: number
 ): number {
+  if ([borrowRateBps, utilizationBps, reserveFactorBps].some((value) => !Number.isSafeInteger(value) || value < 0)) {
+    throw new Error('Invalid rate input');
+  }
+  if (utilizationBps > 10_000) throw new Error('Invalid utilization in calculateSupplyRate');
+  if (reserveFactorBps > 10_000) throw new Error('Invalid reserve factor');
   // Supply Rate = Borrow Rate * Utilization * (1 - Reserve Factor)
   const grossSupplyBps = (borrowRateBps * utilizationBps) / 10_000;
   const retainFactor = 10_000 - reserveFactorBps;
@@ -69,6 +82,10 @@ export function calculateHealthFactor(
   totalDebtUsd: bigint,
   liquidationThresholdBps: number
 ): HealthFactor {
+  if (collateralValueUsd < 0n || totalDebtUsd < 0n) throw new Error('Negative value in calculateHealthFactor');
+  if (!Number.isSafeInteger(liquidationThresholdBps) || liquidationThresholdBps < 0) {
+    throw new Error('Invalid liquidation threshold');
+  }
   if (totalDebtUsd === 0n) {
     return {
       score: Infinity,
@@ -86,7 +103,8 @@ export function calculateHealthFactor(
   }
 
   const liquidationValue = applyBps(collateralValueUsd, liquidationThresholdBps);
-  const hfBps = Number((liquidationValue * BPS_DIVISOR) / totalDebtUsd);
+  const hfBpsRaw = (liquidationValue * BPS_DIVISOR) / totalDebtUsd;
+  const hfBps = hfBpsRaw > BigInt(Number.MAX_SAFE_INTEGER) ? Number.MAX_SAFE_INTEGER : Number(hfBpsRaw);
   const score = hfBps / 10_000;
 
   let status: HealthFactor['status'] = 'safe';
@@ -116,6 +134,15 @@ export function calculateLiquidationAmounts(
   borrowDecimals: number,
   collateralDecimals: number
 ): { seizedCollateralAmount: bigint; bonusCollateralAmount: bigint } {
+  if (repayDebtAmount < 0n || borrowPriceUsd < 0n || collateralPriceUsd <= 0n) {
+    throw new Error('Invalid liquidation amount or price');
+  }
+  if (!Number.isSafeInteger(liquidationBonusBps) || liquidationBonusBps < 0) {
+    throw new Error('Invalid liquidation bonus');
+  }
+  if (![borrowDecimals, collateralDecimals].every((value) => Number.isSafeInteger(value) && value >= 0 && value <= 255)) {
+    throw new Error('Invalid token decimals');
+  }
   const borrowUnit = 10n ** BigInt(borrowDecimals);
   const collateralUnit = 10n ** BigInt(collateralDecimals);
 

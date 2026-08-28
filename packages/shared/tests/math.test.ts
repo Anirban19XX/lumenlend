@@ -7,10 +7,23 @@ import {
   calculateSupplyRate,
   calculateUtilization,
   mulDivDown,
+  mulDivUp,
   tokenAmountToUsd,
+  usdToTokenAmount,
 } from '../src/index.js';
 
 describe('Fixed Point & Lending Math', () => {
+  it('rejects invalid fixed-point inputs', () => {
+    expect(() => mulDivDown(1n, 1n, 0n)).toThrow();
+    expect(() => mulDivUp(1n, 1n, -1n)).toThrow();
+    expect(() => mulDivDown(-1n, 1n, 1n)).toThrow();
+    expect(() => tokenAmountToUsd(1n, 7, -1n)).toThrow();
+    expect(() => tokenAmountToUsd(1n, 256, 1n)).toThrow();
+    expect(() => usdToTokenAmount(1n, 7, 0n)).toThrow();
+    expect(() => usdToTokenAmount(-1n, 7, 1n)).toThrow();
+    expect(() => calculateBorrowCapacity(1n, -1)).toThrow();
+  });
+
   it('calculates pool utilization correctly', () => {
     // 400 borrowed / 1000 supplied = 40% (4000 bps)
     const util = calculateUtilization(400_000_0000000n, 1000_000_0000000n);
@@ -21,6 +34,7 @@ describe('Fixed Point & Lending Math', () => {
 
     // 100% cap
     expect(calculateUtilization(1200n, 1000n)).toBe(10_000);
+    expect(() => calculateUtilization(-1n, 1000n)).toThrow();
   });
 
   it('calculates kinked borrow rates properly', () => {
@@ -42,6 +56,8 @@ describe('Fixed Point & Lending Math', () => {
 
     // At 90% utilization -> 2% + 5% + 0.5 * 50% = 32% (3200 bps)
     expect(calculateBorrowRate(9000, config)).toBe(3200);
+    expect(() => calculateBorrowRate(10_001, config)).toThrow();
+    expect(() => calculateBorrowRate(1000, { ...config, optimalUtilizationBps: 10_001 })).toThrow();
   });
 
   it('calculates supply rate with reserve factor', () => {
@@ -50,6 +66,7 @@ describe('Fixed Point & Lending Math', () => {
     // Net = 5.6% * (1 - 10%) = 5.04% (504 bps)
     const supplyRate = calculateSupplyRate(700, 8000, 1000);
     expect(supplyRate).toBe(504);
+    expect(() => calculateSupplyRate(700, 8000, 10_001)).toThrow();
   });
 
   it('evaluates health factors accurately', () => {
@@ -72,6 +89,17 @@ describe('Fixed Point & Lending Math', () => {
     );
     expect(hfUnsafe.status).toBe('liquidatable');
     expect(hfUnsafe.basisPoints).toBeLessThan(10_000);
+
+    const hfInfinite = calculateHealthFactor(1n, 0n, 8000);
+    expect(hfInfinite.status).toBe('infinite');
+    expect(hfInfinite.score).toBe(Infinity);
+
+    const hfBoundary = calculateHealthFactor(15n, 10n, 10_000);
+    expect(hfBoundary.status).toBe('safe');
+    expect(hfBoundary.basisPoints).toBe(15_000);
+
+    const hfHuge = calculateHealthFactor(10n ** 100n, 1n, 10_000);
+    expect(hfHuge.basisPoints).toBe(Number.MAX_SAFE_INTEGER);
   });
 
   it('calculates liquidation seized collateral and bonus amounts', () => {
@@ -90,5 +118,6 @@ describe('Fixed Point & Lending Math', () => {
 
     expect(seizedCollateralAmount).toBe(1050_0000000n);
     expect(bonusCollateralAmount).toBe(50_0000000n);
+    expect(() => calculateLiquidationAmounts(1n, 1n, 0n, 500, 7, 7)).toThrow();
   });
 });
