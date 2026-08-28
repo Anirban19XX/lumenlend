@@ -6,6 +6,7 @@ import { calculateHealthFactor, tokenAmountToUsd } from '@lumenlend/shared';
 import { useLumenLend } from '../../providers/LumenLendProvider';
 import { formatBps, formatTokenAmount, formatUsd } from '../../lib/formatters';
 import { TransactionStatus } from '../transactions/TransactionStatus';
+import { parseTokenAmount, validateAvailableAmount } from '../../lib/amountValidation';
 
 interface BorrowModalProps {
   isOpen: boolean;
@@ -27,7 +28,8 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
     { id: 'repay' as const, label: 'Repay USDC' },
   ];
 
-  const parsedAmountBigInt = BigInt(Math.floor(parseFloat(amountInput || '0') * 10_000_000));
+  const parsedAmount = parseTokenAmount(amountInput);
+  const parsedAmountBigInt = parsedAmount.amount || 0n;
   const currentDebt = userPosition?.borrowedAmount || 0n;
   const simulatedDebt = activeTab === 'borrow'
     ? currentDebt + parsedAmountBigInt
@@ -41,14 +43,30 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
     simulatedDebtUsd,
     market.config.liquidationThresholdBps
   );
+  const availableLiquidity = market.state.totalSupply > market.state.totalBorrowed
+    ? market.state.totalSupply - market.state.totalBorrowed
+    : 0n;
+  const borrowValidationError = activeTab === 'borrow' && parsedAmount.amount
+    ? validateAvailableAmount(parsedAmount.amount, availableLiquidity, 'market liquidity')
+    : null;
+  const repayValidationError = activeTab === 'repay' && parsedAmount.amount
+    ? validateAvailableAmount(parsedAmount.amount, currentDebt, 'borrowed balance')
+    : null;
+  const validationError = parsedAmount.error || borrowValidationError || repayValidationError || (
+    activeTab === 'borrow' && !userPosition
+      ? 'Borrowing capacity is unavailable. Try again after your position loads.'
+      : activeTab === 'borrow' && parsedAmount.amount && userPosition && simulatedDebtUsd > userPosition.borrowCapacityUsd
+        ? 'Amount exceeds your available borrowing capacity.'
+        : null
+  );
 
   const handleAction = async () => {
-    if (parsedAmountBigInt <= 0n) return;
+    if (!parsedAmount.amount || validationError) return;
     clearTransactionStatus();
     if (activeTab === 'borrow') {
-      await borrowUsdc(parsedAmountBigInt);
+      await borrowUsdc(parsedAmount.amount);
     } else {
-      await repayUsdc(parsedAmountBigInt);
+      await repayUsdc(parsedAmount.amount);
     }
     setAmountInput('');
   };
@@ -80,6 +98,7 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
             }
           }}
         />
+        {validationError && <p role="alert" className="text-sm text-rose-400">{validationError}</p>}
 
         {/* Health Factor Simulation */}
         <div className="space-y-2">
@@ -102,8 +121,7 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
           onClick={handleAction}
           isLoading={isLoading}
           disabled={
-            !amountInput ||
-            parseFloat(amountInput) <= 0 ||
+            Boolean(validationError) ||
             (activeTab === 'borrow' && simulatedHf.status === 'liquidatable')
           }
           variant="primary"

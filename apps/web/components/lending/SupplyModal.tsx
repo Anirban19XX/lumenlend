@@ -5,6 +5,7 @@ import { Modal, Tabs, TokenInput, Button } from '@lumenlend/ui';
 import { useLumenLend } from '../../providers/LumenLendProvider';
 import { formatTokenAmount } from '../../lib/formatters';
 import { TransactionStatus } from '../transactions/TransactionStatus';
+import { parseTokenAmount, validateAvailableAmount } from '../../lib/amountValidation';
 
 interface SupplyModalProps {
   isOpen: boolean;
@@ -39,19 +40,32 @@ export const SupplyModal: React.FC<SupplyModalProps> = ({
     { id: 'withdraw_collat' as const, label: 'Withdraw XLM' },
   ];
 
+  const parsedAmount = parseTokenAmount(amountInput);
+  const availableAmount = activeTab === 'withdraw_collat'
+    ? userPosition?.collateralAmount
+    : activeTab === 'withdraw'
+    ? userPosition?.suppliedAmount
+    : undefined;
+  const validationError = parsedAmount.error || (
+    (activeTab === 'withdraw' || activeTab === 'withdraw_collat') && availableAmount === undefined
+      ? 'Current wallet position is unavailable. Try again after it loads.'
+      : parsedAmount.amount && availableAmount !== undefined
+        ? validateAvailableAmount(parsedAmount.amount, availableAmount, activeTab === 'withdraw' ? 'supplied balance' : 'collateral balance')
+        : null
+  );
+
   const handleAction = async () => {
-    const parsedAmount = BigInt(Math.floor(parseFloat(amountInput || '0') * 10_000_000));
-    if (parsedAmount <= 0n) return;
+    if (!parsedAmount.amount || validationError) return;
     clearTransactionStatus();
 
     if (activeTab === 'supply') {
-      await supplyUsdc(parsedAmount);
+      await supplyUsdc(parsedAmount.amount);
     } else if (activeTab === 'withdraw') {
-      await withdrawUsdc(parsedAmount);
+      await withdrawUsdc(parsedAmount.amount);
     } else if (activeTab === 'deposit_collat') {
-      await depositXlmCollateral(parsedAmount);
+      await depositXlmCollateral(parsedAmount.amount);
     } else if (activeTab === 'withdraw_collat') {
-      await withdrawXlmCollateral(parsedAmount);
+      await withdrawXlmCollateral(parsedAmount.amount);
     }
 
     setAmountInput('');
@@ -74,10 +88,10 @@ export const SupplyModal: React.FC<SupplyModalProps> = ({
             isCollat
               ? activeTab === 'withdraw_collat'
                 ? formatTokenAmount(userPosition?.collateralAmount || 0n, 7)
-                : '1,500.00'
+                : undefined
               : activeTab === 'withdraw'
               ? formatTokenAmount(userPosition?.suppliedAmount || 0n, 7)
-              : '2,500.00'
+              : undefined
           }
           onMaxClick={() => {
             if (activeTab === 'withdraw_collat') {
@@ -89,6 +103,7 @@ export const SupplyModal: React.FC<SupplyModalProps> = ({
             }
           }}
         />
+        {validationError && <p role="alert" className="text-sm text-rose-400">{validationError}</p>}
 
         <div className="p-4 bg-slate-950/60 border border-slate-800/80 rounded-2xl text-xs space-y-2 text-slate-400">
           <div className="flex justify-between">
@@ -110,7 +125,7 @@ export const SupplyModal: React.FC<SupplyModalProps> = ({
         <Button
           onClick={handleAction}
           isLoading={isLoading}
-          disabled={!amountInput || parseFloat(amountInput) <= 0}
+          disabled={Boolean(validationError)}
           variant="primary"
           size="lg"
           className="w-full"
