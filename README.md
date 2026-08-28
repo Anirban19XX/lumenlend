@@ -172,7 +172,7 @@ pnpm initialize:market
 > All contracts and financial calculations are provided for evaluation and development purposes. Do not deploy or risk real funds without professional third-party audits & formal security verification.
 
 ---
-## 11. ## 📜 Contract Addresses
+## 11. Contract Addresses
 
 | Contract                | Address                                                                                                                          |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
