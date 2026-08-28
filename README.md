@@ -172,7 +172,7 @@ pnpm initialize:market
 > All contracts and financial calculations are provided for evaluation and development purposes. Do not deploy or risk real funds without professional third-party audits & formal security verification.
 
 ---
-## 11. ## 📜 Contract Addresses
+## 11. Contract Addresses
 
 | Contract                | Address                                                    |
 | ----------------------- | ---------------------------------------------------------- |
@@ -183,7 +183,7 @@ pnpm initialize:market
 | **Interest Rate Model** | `CAZUXLCCTASYDQEATWODPDGR62J3YSAGBK4TQ4QHOMZL3URRUUMSKFOZ` |
 | **XLM Asset (SAC)**     | `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` |
 
-### 🔍 View on Stellar Expert
+###  View on Stellar Expert
 
 Replace `<address>` with the contract address:
 
