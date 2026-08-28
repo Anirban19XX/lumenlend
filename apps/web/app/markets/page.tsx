@@ -2,6 +2,7 @@
 
 import React, { useMemo, useState } from 'react';
 import { ArrowDownAZ, ArrowUpAZ, Search } from 'lucide-react';
+import Link from 'next/link';
 import { Card, Badge, Button } from '@lumenlend/ui';
 import type { Market } from '@lumenlend/shared';
 import { useLumenLend } from '../../providers/LumenLendProvider';
@@ -91,12 +92,21 @@ export default function MarketsPage() {
         </div>
 
         {visibleMarkets.length > 0 ? visibleMarkets.map((visibleMarket) => (
-          <MarketCard
-            key={visibleMarket.config.marketId}
-            market={visibleMarket}
-            onSupplyClick={() => setIsSupplyOpen(true)}
-            onBorrowClick={() => setIsBorrowOpen(true)}
-          />
+          <div key={visibleMarket.config.marketId}>
+            <MarketCard
+              market={visibleMarket}
+              onSupplyClick={() => setIsSupplyOpen(true)}
+              onBorrowClick={() => setIsBorrowOpen(true)}
+            />
+            <div className="flex justify-end">
+              <Link
+                href={`/markets/${encodeURIComponent(visibleMarket.config.marketId)}`}
+                className="text-sm font-semibold text-cyan-400 transition-colors hover:text-cyan-300"
+              >
+                View market details <span aria-hidden="true">-&gt;</span>
+              </Link>
+            </div>
+          </div>
         )) : (
           <Card variant="glass" padding="lg" className="text-center">
             <h2 className="text-lg font-bold text-white">No markets found</h2>
