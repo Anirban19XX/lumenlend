@@ -41,15 +41,14 @@ export const WalletProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         walletType: 'freighter',
         error: null,
       });
-    } catch (err: any) {
-      // If Freighter extension isn't found in developer test environment, provide mock account for UI interaction
-      const mockAddress = 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5';
+    } catch (err: unknown) {
+      const error = err instanceof Error ? err.message : 'Unable to connect to Freighter.';
       setState({
-        isConnected: true,
-        address: mockAddress,
+        isConnected: false,
+        address: null,
         network: 'testnet',
-        walletType: 'mock',
-        error: null,
+        walletType: null,
+        error,
       });
     } finally {
       setIsConnecting(false);
