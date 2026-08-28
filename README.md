@@ -154,7 +154,7 @@ pnpm initialize:market
 
 > [!WARNING]
 > **LumenLend is experimental, un-audited software.**
-> All contracts and financial calculations are provided for evaluation and development purposes. Do not deploy or risk real funds without professional third-party audits and formal security verification.
+> All contracts and financial calculations are provided for evaluation and development purposes. Do not deploy or risk real funds without professional third-party audits & formal security verification.
 
 ---
 
