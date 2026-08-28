@@ -33,6 +33,21 @@ The initial implementation powers the **XLM Collateral → USDC Borrowing** mark
 4. **Rust-Powered Contract Safety**: Memory safety, explicit authorization trees (`require_auth`), and resource metering.
 
 ---
+## 📸 Screenshots
+
+### 1. Dashboard
+<img width="1917" height="871" alt="Screenshot 2026-08-28 152606" src="https://github.com/user-attachments/assets/9c4ea808-eee8-4165-9a20-badd52f0b008" />
+
+---
+
+### 2. Available Markets
+<img width="1917" height="867" alt="Screenshot 2026-08-28 152634" src="https://github.com/user-attachments/assets/6b3c614f-ebfa-4343-a2b9-7d9c2b73654f" />
+
+---
+### 3. Lending Markets
+<img width="1913" height="856" alt="Screenshot 2026-08-28 152702" src="https://github.com/user-attachments/assets/523f48ff-cb71-478a-9f1b-b3f443cc9f25" />
+
+
 
 ## 3. Architecture
 
