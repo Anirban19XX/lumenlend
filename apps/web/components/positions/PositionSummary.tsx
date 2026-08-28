@@ -40,6 +40,7 @@ export const PositionSummary: React.FC<PositionSummaryProps> = ({
   const hfScore = userPosition.borrowedAmount > 0n
     ? userPosition.healthFactorBps / 10_000
     : Infinity;
+  const healthFactorStatus = userPosition.healthFactorStatus || (userPosition.isLiquidatable ? 'liquidatable' : 'safe');
   const hasActivePosition = userPosition.suppliedAmount > 0n
     || userPosition.borrowedAmount > 0n
     || userPosition.collateralAmount > 0n;
@@ -155,7 +156,7 @@ export const PositionSummary: React.FC<PositionSummaryProps> = ({
             </Badge>
           </div>
 
-          <HealthGauge healthFactor={hfScore} />
+          <HealthGauge healthFactor={hfScore} healthFactorStatus={healthFactorStatus} />
         </div>
 
         <div className="mt-4 pt-3 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">

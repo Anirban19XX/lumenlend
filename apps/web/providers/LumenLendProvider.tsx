@@ -175,6 +175,7 @@ export const LumenLendProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           borrowCapacityUsd,
           availableToBorrowUsd,
           healthFactorBps: hf.basisPoints,
+          healthFactorStatus: hf.status,
           isLiquidatable: hf.status === 'liquidatable',
           lastUpdated: Date.now(),
         });

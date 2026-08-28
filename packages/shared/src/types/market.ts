@@ -55,6 +55,7 @@ export interface UserPosition {
   borrowCapacityUsd: bigint;  // scaled by 1e9
   availableToBorrowUsd: bigint; // scaled by 1e9
   healthFactorBps: number;    // 10000 = 1.0 (Safe > 15000, Warning 10000-15000, Danger < 10000)
+  healthFactorStatus?: HealthFactor['status'];
   isLiquidatable: boolean;
   lastUpdated: number;
 }

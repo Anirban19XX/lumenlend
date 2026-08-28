@@ -44,6 +44,7 @@ export class PositionService {
       borrowCapacityUsd,
       availableToBorrowUsd,
       healthFactorBps: hf.basisPoints,
+      healthFactorStatus: hf.status,
       isLiquidatable: hf.status === 'liquidatable',
       lastUpdated: raw?.updated_at ? new Date(raw.updated_at).getTime() : Date.now(),
     };
