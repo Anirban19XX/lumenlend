@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use super::*;
-use soroban_sdk::{testutils::Address as _, Env};
+use collateral_vault::*;
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 #[test]
 fn test_collateral_vault_initialization() {
@@ -12,6 +12,7 @@ fn test_collateral_vault_initialization() {
     let admin = Address::generate(&env);
     let oracle = Address::generate(&env);
     let pool = Address::generate(&env);
+    let liquidation_engine = Address::generate(&env);
     let xlm = Address::generate(&env);
     let usdc = Address::generate(&env);
 
@@ -23,5 +24,5 @@ fn test_collateral_vault_initialization() {
         is_enabled: true,
     };
 
-    client.initialize(&admin, &oracle, &pool, &config);
+    client.initialize(&admin, &oracle, &pool, &liquidation_engine, &config);
 }

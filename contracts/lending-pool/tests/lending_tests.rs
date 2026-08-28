@@ -1,6 +1,6 @@
 #![cfg(test)]
 
-use super::*;
+use lending_pool::*;
 use soroban_sdk::{contract, contractimpl, testutils::Address as _, token, Address, Env};
 
 #[contract]
@@ -8,7 +8,12 @@ struct MockCollateralVault;
 
 #[contractimpl]
 impl CollateralVaultPeer for MockCollateralVault {
-    fn can_borrow(_env: Env, _user: Address, _current_debt: i128, _additional_borrow_amount: i128) -> bool {
+    fn can_borrow(
+        _env: Env,
+        _user: Address,
+        _current_debt: i128,
+        _additional_borrow_amount: i128,
+    ) -> bool {
         true
     }
 }
@@ -28,6 +33,7 @@ struct Fixture {
     pool: Address,
     asset: Address,
     user: Address,
+    second_user: Address,
 }
 
 fn fixture() -> Fixture {
@@ -37,14 +43,23 @@ fn fixture() -> Fixture {
     let admin = Address::generate(&env);
     let vault_id = env.register(MockCollateralVault, ());
     let rate_model_id = env.register(MockRateModel, ());
-    let asset = env.register_stellar_asset_contract_v2(Address::generate(&env)).address();
+    let asset = env
+        .register_stellar_asset_contract_v2(Address::generate(&env))
+        .address();
     let user = Address::generate(&env);
+    let second_user = Address::generate(&env);
 
     let client = LendingPoolClient::new(&env, &pool_id);
     client.initialize(&admin, &vault_id, &rate_model_id);
     client.init_market(&asset, &0);
 
-    Fixture { env, pool: pool_id, asset, user }
+    Fixture {
+        env,
+        pool: pool_id,
+        asset,
+        user,
+        second_user,
+    }
 }
 
 fn client(fixture: &Fixture) -> LendingPoolClient<'_> {
@@ -52,7 +67,11 @@ fn client(fixture: &Fixture) -> LendingPoolClient<'_> {
 }
 
 fn fund(fixture: &Fixture, amount: i128) {
-    token::StellarAssetClient::new(&fixture.env, &fixture.asset).mint(&fixture.user, &amount);
+    fund_for(fixture, &fixture.user, amount);
+}
+
+fn fund_for(fixture: &Fixture, user: &Address, amount: i128) {
+    token::StellarAssetClient::new(&fixture.env, &fixture.asset).mint(user, &amount);
 }
 
 fn supply(fixture: &Fixture, amount: i128) {
@@ -80,7 +99,13 @@ fn test_initialization_twice_is_rejected() {
     let vault = Address::generate(&fixture.env);
     let rate_model = Address::generate(&fixture.env);
 
-    assert_eq!(client(&fixture).try_initialize(&admin, &vault, &rate_model).unwrap_err().unwrap(), Error::AlreadyInitialized);
+    assert_eq!(
+        client(&fixture)
+            .try_initialize(&admin, &vault, &rate_model)
+            .unwrap_err()
+            .unwrap(),
+        Error::AlreadyInitialized
+    );
 }
 
 #[test]
@@ -99,9 +124,27 @@ fn test_unauthorized_initialization_is_rejected() {
 fn test_zero_and_negative_amounts_are_rejected() {
     let fixture = fixture();
     for amount in [0, -1] {
-        assert_eq!(client(&fixture).try_supply(&fixture.user, &fixture.asset, &amount).unwrap_err().unwrap(), Error::InvalidAmount);
-        assert_eq!(client(&fixture).try_withdraw(&fixture.user, &fixture.asset, &amount).unwrap_err().unwrap(), Error::InvalidAmount);
-        assert_eq!(client(&fixture).try_repay(&fixture.user, &fixture.asset, &amount).unwrap_err().unwrap(), Error::InvalidAmount);
+        assert_eq!(
+            client(&fixture)
+                .try_supply(&fixture.user, &fixture.asset, &amount)
+                .unwrap_err()
+                .unwrap(),
+            Error::InvalidAmount
+        );
+        assert_eq!(
+            client(&fixture)
+                .try_withdraw(&fixture.user, &fixture.asset, &amount)
+                .unwrap_err()
+                .unwrap(),
+            Error::InvalidAmount
+        );
+        assert_eq!(
+            client(&fixture)
+                .try_repay(&fixture.user, &fixture.asset, &amount)
+                .unwrap_err()
+                .unwrap(),
+            Error::InvalidAmount
+        );
     }
 }
 
@@ -124,8 +167,19 @@ fn test_partial_withdrawal_updates_user_and_market() {
 
     client(&fixture).withdraw(&fixture.user, &fixture.asset, &40);
 
-    assert_eq!(client(&fixture).get_user_position(&fixture.user, &fixture.asset).supplied_shares, 60);
-    assert_eq!(client(&fixture).get_market_state(&fixture.asset).unwrap().total_supplied, 60);
+    assert_eq!(
+        client(&fixture)
+            .get_user_position(&fixture.user, &fixture.asset)
+            .supplied_shares,
+        60
+    );
+    assert_eq!(
+        client(&fixture)
+            .get_market_state(&fixture.asset)
+            .unwrap()
+            .total_supplied,
+        60
+    );
 }
 
 #[test]
@@ -133,7 +187,13 @@ fn test_withdrawal_exceeding_user_balance_is_rejected() {
     let fixture = fixture();
     supply(&fixture, 100);
 
-    assert_eq!(client(&fixture).try_withdraw(&fixture.user, &fixture.asset, &101).unwrap_err().unwrap(), Error::InsufficientLiquidity);
+    assert_eq!(
+        client(&fixture)
+            .try_withdraw(&fixture.user, &fixture.asset, &101)
+            .unwrap_err()
+            .unwrap(),
+        Error::InsufficientLiquidity
+    );
 }
 
 #[test]
@@ -142,13 +202,25 @@ fn test_withdrawal_exceeding_available_liquidity_is_rejected() {
     supply(&fixture, 100);
 
     client(&fixture).borrow(&fixture.user, &fixture.asset, &60);
-    assert_eq!(client(&fixture).try_withdraw(&fixture.user, &fixture.asset, &41).unwrap_err().unwrap(), Error::InsufficientLiquidity);
+    assert_eq!(
+        client(&fixture)
+            .try_withdraw(&fixture.user, &fixture.asset, &41)
+            .unwrap_err()
+            .unwrap(),
+        Error::InsufficientLiquidity
+    );
 }
 
 #[test]
 fn test_borrow_with_insufficient_liquidity_is_rejected() {
     let fixture = fixture();
-    assert_eq!(client(&fixture).try_borrow(&fixture.user, &fixture.asset, &1).unwrap_err().unwrap(), Error::InsufficientLiquidity);
+    assert_eq!(
+        client(&fixture)
+            .try_borrow(&fixture.user, &fixture.asset, &1)
+            .unwrap_err()
+            .unwrap(),
+        Error::InsufficientLiquidity
+    );
 }
 
 #[test]
@@ -161,12 +233,22 @@ fn test_repayment_larger_than_debt_is_capped_and_exact_repayment_clears_debt() {
     client(&fixture).borrow(&fixture.user, &fixture.asset, &20);
     fund(&fixture, 20);
     client(&fixture).repay(&fixture.user, &fixture.asset, &20);
-    assert_eq!(client(&fixture).get_user_position(&fixture.user, &fixture.asset).principal_borrowed, 0);
+    assert_eq!(
+        client(&fixture)
+            .get_user_position(&fixture.user, &fixture.asset)
+            .principal_borrowed,
+        0
+    );
 
     client(&fixture).borrow(&fixture.user, &fixture.asset, &20);
     fund(&fixture, 30);
     client(&fixture).repay(&fixture.user, &fixture.asset, &30);
-    assert_eq!(client(&fixture).get_user_position(&fixture.user, &fixture.asset).principal_borrowed, 0);
+    assert_eq!(
+        client(&fixture)
+            .get_user_position(&fixture.user, &fixture.asset)
+            .principal_borrowed,
+        0
+    );
 }
 
 #[test]
@@ -179,7 +261,12 @@ fn test_multiple_borrow_and_repay_operations() {
     client(&fixture).repay(&fixture.user, &fixture.asset, &10);
     client(&fixture).borrow(&fixture.user, &fixture.asset, &15);
 
-    assert_eq!(client(&fixture).get_user_position(&fixture.user, &fixture.asset).principal_borrowed, 25);
+    assert_eq!(
+        client(&fixture)
+            .get_user_position(&fixture.user, &fixture.asset)
+            .principal_borrowed,
+        25
+    );
 }
 
 #[test]
@@ -188,6 +275,12 @@ fn test_overflow_sensitive_supply_boundary_is_rejected() {
     let amount = i128::MAX;
     fund(&fixture, amount);
     client(&fixture).supply(&fixture.user, &fixture.asset, &amount);
-    fund(&fixture, 1);
-    assert_eq!(client(&fixture).try_supply(&fixture.user, &fixture.asset, &1).unwrap_err().unwrap(), Error::Overflow);
+    fund_for(fixture, &fixture.second_user, 1);
+    assert_eq!(
+        client(&fixture)
+            .try_supply(&fixture.second_user, &fixture.asset, &1)
+            .unwrap_err()
+            .unwrap(),
+        Error::Overflow
+    );
 }

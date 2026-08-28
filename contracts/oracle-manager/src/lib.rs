@@ -1,8 +1,6 @@
 #![no_std]
 
-use soroban_sdk::{
-    contract, contracterror, contractimpl, contracttype, Address, Env, Symbol,
-};
+use soroban_sdk::{contract, contracterror, contractimpl, contracttype, Address, Env, Symbol};
 
 #[contracterror]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Ord)]
@@ -19,7 +17,7 @@ pub enum OracleError {
 #[contracttype]
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct PriceRecord {
-    pub price: i128,      // USD price scaled by 1e9 (e.g. $0.12 = 120_000_000)
+    pub price: i128, // USD price scaled by 1e9 (e.g. $0.12 = 120_000_000)
     pub timestamp: u64,
     pub decimals: u32,
 }
@@ -39,7 +37,11 @@ pub struct OracleManager;
 #[contractimpl]
 impl OracleManager {
     /// Initialize the Oracle Manager.
-    pub fn initialize(env: Env, admin: Address, max_staleness_seconds: Option<u64>) -> Result<(), OracleError> {
+    pub fn initialize(
+        env: Env,
+        admin: Address,
+        max_staleness_seconds: Option<u64>,
+    ) -> Result<(), OracleError> {
         if env.storage().instance().has(&DataKey::Admin) {
             return Err(OracleError::AlreadyInitialized);
         }
@@ -97,10 +99,7 @@ impl OracleManager {
     }
 
     /// Get current asset price and timestamp with staleness check.
-    pub fn get_price_with_timestamp(
-        env: Env,
-        asset: Address,
-    ) -> Result<PriceRecord, OracleError> {
+    pub fn get_price_with_timestamp(env: Env, asset: Address) -> Result<PriceRecord, OracleError> {
         let record: PriceRecord = env
             .storage()
             .persistent()

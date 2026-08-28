@@ -52,7 +52,13 @@ pub trait CollateralVaultPeer {
 #[soroban_sdk::contractclient(name = "LendingPoolPeerClient")]
 pub trait LendingPoolPeer {
     fn get_user_position(env: Env, user: Address, asset: Address) -> UserLendingPositionMirror;
-    fn liquidation_repay(env: Env, payer: Address, borrower: Address, asset: Address, amount: i128) -> i128;
+    fn liquidation_repay(
+        env: Env,
+        payer: Address,
+        borrower: Address,
+        asset: Address,
+        amount: i128,
+    ) -> i128;
 }
 
 const BPS_SCALE: i128 = 10_000;

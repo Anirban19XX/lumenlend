@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use super::*;
-use soroban_sdk::{testutils::Address as _, Env};
+use oracle_manager::*;
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 #[test]
 fn test_oracle_set_and_get_price() {

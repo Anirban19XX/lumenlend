@@ -27,7 +27,7 @@ pub struct MarketState {
     pub total_supplied: i128,
     pub total_borrowed: i128,
     pub total_reserves: i128,
-    pub borrow_index: i128,      // Scaled by 1e9 (1,000,000,000)
+    pub borrow_index: i128, // Scaled by 1e9 (1,000,000,000)
     pub last_accrual_time: u64,
     pub reserve_factor_bps: u32, // 1000 = 10%
     pub is_active: bool,
@@ -53,7 +53,12 @@ pub enum DataKey {
 
 #[soroban_sdk::contractclient(name = "CollateralVaultPeerClient")]
 pub trait CollateralVaultPeer {
-    fn can_borrow(env: Env, user: Address, current_debt: i128, additional_borrow_amount: i128) -> bool;
+    fn can_borrow(
+        env: Env,
+        user: Address,
+        current_debt: i128,
+        additional_borrow_amount: i128,
+    ) -> bool;
 }
 
 #[soroban_sdk::contractclient(name = "RateModelPeerClient")]
@@ -86,7 +91,9 @@ impl LendingPool {
         env.storage()
             .instance()
             .set(&DataKey::CollateralVault, &collateral_vault);
-        env.storage().instance().set(&DataKey::RateModel, &rate_model);
+        env.storage()
+            .instance()
+            .set(&DataKey::RateModel, &rate_model);
 
         Ok(())
     }
@@ -340,11 +347,7 @@ impl LendingPool {
     }
 
     /// Read user position for an asset.
-    pub fn get_user_position(
-        env: Env,
-        user: Address,
-        asset: Address,
-    ) -> UserLendingPosition {
+    pub fn get_user_position(env: Env, user: Address, asset: Address) -> UserLendingPosition {
         let user_key = DataKey::UserPosition(user, asset);
         env.storage()
             .persistent()
@@ -387,7 +390,11 @@ impl LendingPool {
             .ok_or(Error::InsufficientLiquidity)?;
 
         let total_debt = Self::calculate_user_debt(&user_pos, state.borrow_index)?;
-        let repay_actual = if amount > total_debt { total_debt } else { amount };
+        let repay_actual = if amount > total_debt {
+            total_debt
+        } else {
+            amount
+        };
 
         // Transfer tokens from payer to pool
         let token_client = token::Client::new(env, asset);
@@ -431,25 +438,18 @@ impl LendingPool {
             .get(&DataKey::RateModel)
             .ok_or(Error::NotInitialized)?;
         let rate_model_client = RateModelPeerClient::new(env, &rate_model_addr);
-        let borrow_rate_bps = rate_model_client.get_borrow_rate(&state.total_borrowed, &state.total_supplied);
+        let borrow_rate_bps =
+            rate_model_client.get_borrow_rate(&state.total_borrowed, &state.total_supplied);
 
         // Convert annual bps rate to a per-elapsed-second interest factor, scaled by 1e9.
-        let rate_per_sec = borrow_rate_bps
-            .checked_mul(SCALE)
-            .ok_or(Error::Overflow)?
+        let rate_per_sec = borrow_rate_bps.checked_mul(SCALE).ok_or(Error::Overflow)?
             / BPS_SCALE
             / SECONDS_PER_YEAR;
         let interest_factor = rate_per_sec.checked_mul(time_delta as i128).unwrap_or(0);
 
         let new_borrow_index = state
             .borrow_index
-            .checked_add(
-                state
-                    .borrow_index
-                    .checked_mul(interest_factor)
-                    .unwrap_or(0)
-                    / SCALE,
-            )
+            .checked_add(state.borrow_index.checked_mul(interest_factor).unwrap_or(0) / SCALE)
             .unwrap_or(state.borrow_index);
 
         state.borrow_index = new_borrow_index;
@@ -457,11 +457,15 @@ impl LendingPool {
         Ok(())
     }
 
-    fn calculate_user_debt(user_pos: &UserLendingPosition, current_index: i128) -> Result<i128, Error> {
+    fn calculate_user_debt(
+        user_pos: &UserLendingPosition,
+        current_index: i128,
+    ) -> Result<i128, Error> {
         if user_pos.principal_borrowed == 0 || user_pos.borrow_index == 0 {
             return Ok(0);
         }
-        let debt = (user_pos.principal_borrowed as i128)
+        let debt = user_pos
+            .principal_borrowed
             .checked_mul(current_index)
             .ok_or(Error::Overflow)?
             / user_pos.borrow_index;

@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use super::*;
-use soroban_sdk::{testutils::Address as _, Env};
+use interest_rate_model::*;
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 #[test]
 fn test_kinked_interest_rates() {
@@ -11,10 +11,10 @@ fn test_kinked_interest_rates() {
 
     let admin = Address::generate(&env);
     let config = RateModelConfig {
-        base_rate_bps: 200,           // 2.0%
+        base_rate_bps: 200,            // 2.0%
         optimal_utilization_bps: 8000, // 80.0%
-        slope_1_bps: 500,             // 5.0%
-        slope_2_bps: 5000,            // 50.0%
+        slope_1_bps: 500,              // 5.0%
+        slope_2_bps: 5000,             // 50.0%
     };
 
     client.initialize(&admin, &config);

@@ -100,7 +100,11 @@ impl CollateralVault {
     /// share the same price, so it cancels out of the health-factor calculation — a price
     /// move alone can never make a position liquidatable. Adjusting the liquidation
     /// threshold (a real governance lever) is what actually moves health factors here.
-    pub fn set_liquidation_threshold(env: Env, admin: Address, new_bps: u32) -> Result<(), VaultError> {
+    pub fn set_liquidation_threshold(
+        env: Env,
+        admin: Address,
+        new_bps: u32,
+    ) -> Result<(), VaultError> {
         let stored_admin: Address = env
             .storage()
             .instance()
@@ -123,11 +127,7 @@ impl CollateralVault {
     }
 
     /// Deposit collateral asset into vault.
-    pub fn deposit_collateral(
-        env: Env,
-        user: Address,
-        amount: i128,
-    ) -> Result<i128, VaultError> {
+    pub fn deposit_collateral(env: Env, user: Address, amount: i128) -> Result<i128, VaultError> {
         user.require_auth();
         if amount <= 0 {
             return Err(VaultError::InvalidAmount);
@@ -164,11 +164,7 @@ impl CollateralVault {
     }
 
     /// Withdraw collateral asset from vault. Fails if withdrawal would result in unsafe position.
-    pub fn withdraw_collateral(
-        env: Env,
-        user: Address,
-        amount: i128,
-    ) -> Result<i128, VaultError> {
+    pub fn withdraw_collateral(env: Env, user: Address, amount: i128) -> Result<i128, VaultError> {
         user.require_auth();
         if amount <= 0 {
             return Err(VaultError::InvalidAmount);
@@ -258,7 +254,12 @@ impl CollateralVault {
     /// units) without exceeding max LTV. `current_debt` is supplied by lending-pool (which
     /// already holds it) rather than fetched here — lending-pool is the one calling this
     /// method, and Soroban disallows a contract re-entering itself via a cross-call cycle.
-    pub fn can_borrow(env: Env, user: Address, current_debt: i128, additional_borrow_amount: i128) -> bool {
+    pub fn can_borrow(
+        env: Env,
+        user: Address,
+        current_debt: i128,
+        additional_borrow_amount: i128,
+    ) -> bool {
         Self::can_borrow_internal(&env, &user, current_debt, additional_borrow_amount).unwrap()
     }
 
@@ -283,7 +284,8 @@ impl CollateralVault {
         let prospective_debt_units = current_debt
             .checked_add(additional_borrow_amount)
             .ok_or(VaultError::Overflow)?;
-        let prospective_debt_value = Self::asset_value_usd(env, &config.borrow_asset, prospective_debt_units)?;
+        let prospective_debt_value =
+            Self::asset_value_usd(env, &config.borrow_asset, prospective_debt_units)?;
 
         Ok(prospective_debt_value <= borrow_capacity_value)
     }
@@ -338,7 +340,11 @@ impl CollateralVault {
         token_client.transfer(&env.current_contract_address(), liquidator, &amount);
 
         env.events().publish(
-            (Symbol::new(env, "seize_collat"), borrower.clone(), liquidator.clone()),
+            (
+                Symbol::new(env, "seize_collat"),
+                borrower.clone(),
+                liquidator.clone(),
+            ),
             (amount, new_balance),
         );
 
@@ -379,7 +385,11 @@ impl CollateralVault {
     }
 
     // Helper: current outstanding debt for `user`, read from lending-pool.
-    fn current_debt(env: &Env, config: &CollateralConfig, user: &Address) -> Result<i128, VaultError> {
+    fn current_debt(
+        env: &Env,
+        config: &CollateralConfig,
+        user: &Address,
+    ) -> Result<i128, VaultError> {
         let pool_addr: Address = env
             .storage()
             .instance()
@@ -403,7 +413,8 @@ impl CollateralVault {
             return Ok(true);
         }
 
-        let collateral_value = Self::asset_value_usd(env, &config.collateral_asset, _new_collateral)?;
+        let collateral_value =
+            Self::asset_value_usd(env, &config.collateral_asset, _new_collateral)?;
         let debt_value = Self::asset_value_usd(env, &config.borrow_asset, debt_units)?;
 
         let adjusted_collateral = collateral_value

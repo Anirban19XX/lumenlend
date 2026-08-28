@@ -1,7 +1,7 @@
 #![cfg(test)]
 
-use super::*;
-use soroban_sdk::{testutils::Address as _, Env};
+use liquidation_engine::*;
+use soroban_sdk::{testutils::Address as _, Address, Env};
 
 #[test]
 fn test_liquidation_engine_init() {
@@ -13,8 +13,10 @@ fn test_liquidation_engine_init() {
     let vault = Address::generate(&env);
     let pool = Address::generate(&env);
     let oracle = Address::generate(&env);
+    let asset = Address::generate(&env);
 
     let config = LiquidationConfig {
+        asset,
         liquidation_bonus_bps: 500, // 5% bonus
         close_factor_bps: 5000,     // 50%
         is_enabled: true,
