@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Card, HealthGauge, Badge, Button } from '@lumenlend/ui';
+import { Card, HealthGauge, Badge, Button, StatCard } from '@lumenlend/ui';
 import { useLumenLend } from '../../providers/LumenLendProvider';
 import { useWallet } from '../../providers/WalletProvider';
 import { formatBps, formatTokenAmount, formatUsd } from '../../lib/formatters';
@@ -40,9 +40,47 @@ export const PositionSummary: React.FC<PositionSummaryProps> = ({
   const hfScore = userPosition.borrowedAmount > 0n
     ? userPosition.healthFactorBps / 10_000
     : Infinity;
+  const hasActivePosition = userPosition.suppliedAmount > 0n
+    || userPosition.borrowedAmount > 0n
+    || userPosition.collateralAmount > 0n;
+  const healthFactorValue = Number.isFinite(hfScore) ? hfScore.toFixed(2) : '∞';
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <StatCard
+          title="Total Supplied"
+          value={`${formatTokenAmount(userPosition.suppliedAmount, 7, 0)} XLM`}
+          subValue="Current market position"
+        />
+        <StatCard
+          title="Total Borrowed"
+          value={`${formatTokenAmount(userPosition.borrowedAmount, 7, 0)} USDC`}
+          subValue={`≈ ${formatUsd(userPosition.borrowedValueUsd)}`}
+        />
+        <StatCard
+          title="Collateral Value"
+          value={formatUsd(userPosition.collateralValueUsd, 0)}
+          subValue={`${formatTokenAmount(userPosition.collateralAmount, 7, 0)} XLM locked`}
+        />
+        <StatCard
+          title="Available Borrowing Capacity"
+          value={formatUsd(userPosition.availableToBorrowUsd, 0)}
+          subValue="Based on current collateral"
+        />
+        <StatCard
+          title="Health Factor"
+          value={healthFactorValue}
+          subValue={userPosition.isLiquidatable ? 'Liquidatable' : 'Current account health'}
+        />
+        <StatCard
+          title="Active Positions"
+          value={hasActivePosition ? '1' : '0'}
+          subValue="Current market position"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
       {/* Collateral & Borrow Capacity */}
       <Card variant="glass" padding="md" className="space-y-4">
         <div className="flex items-center justify-between">
@@ -125,6 +163,7 @@ export const PositionSummary: React.FC<PositionSummaryProps> = ({
           <span className="font-semibold text-slate-300">{formatBps(market.config.liquidationThresholdBps)}</span>
         </div>
       </Card>
+      </div>
     </div>
   );
 };
