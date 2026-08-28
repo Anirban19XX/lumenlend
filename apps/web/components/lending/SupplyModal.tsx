@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { Modal, Tabs, TokenInput, Button } from '@lumenlend/ui';
 import { useLumenLend } from '../../providers/LumenLendProvider';
 import { formatTokenAmount } from '../../lib/formatters';
+import { TransactionStatus } from '../transactions/TransactionStatus';
 
 interface SupplyModalProps {
   isOpen: boolean;
@@ -23,6 +24,9 @@ export const SupplyModal: React.FC<SupplyModalProps> = ({
     depositXlmCollateral,
     withdrawXlmCollateral,
     isLoading,
+    transactionStatus,
+    transactionError,
+    clearTransactionStatus,
   } = useLumenLend();
 
   const [activeTab, setActiveTab] = useState<'supply' | 'withdraw' | 'deposit_collat' | 'withdraw_collat'>(initialTab);
@@ -38,6 +42,7 @@ export const SupplyModal: React.FC<SupplyModalProps> = ({
   const handleAction = async () => {
     const parsedAmount = BigInt(Math.floor(parseFloat(amountInput || '0') * 10_000_000));
     if (parsedAmount <= 0n) return;
+    clearTransactionStatus();
 
     if (activeTab === 'supply') {
       await supplyUsdc(parsedAmount);
@@ -50,7 +55,6 @@ export const SupplyModal: React.FC<SupplyModalProps> = ({
     }
 
     setAmountInput('');
-    onClose();
   };
 
   const isCollat = activeTab.includes('collat');
@@ -59,6 +63,7 @@ export const SupplyModal: React.FC<SupplyModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Manage Liquidity & Collateral" maxWidth="md">
       <div className="space-y-6">
+        <TransactionStatus status={transactionStatus} error={transactionError} />
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
         <TokenInput

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
-import { LumenLendClient } from '@lumenlend/contracts-client';
+import { LumenLendClient, type TransactionLifecycleStatus, type TransactionStatusCallback } from '@lumenlend/contracts-client';
 import {
   calculateBorrowCapacity,
   calculateBorrowRate,
@@ -32,6 +32,9 @@ interface LumenLendContextType {
   userPosition: UserPosition | null;
   protocolStats: ProtocolStats;
   isLoading: boolean;
+  transactionStatus: TransactionLifecycleStatus | null;
+  transactionError: string | null;
+  clearTransactionStatus: () => void;
   isAdmin: boolean;
   supplyUsdc: (amount: bigint) => Promise<void>;
   withdrawUsdc: (amount: bigint) => Promise<void>;
@@ -84,6 +87,8 @@ export const LumenLendProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   const [protocolStats, setProtocolStats] = useState<ProtocolStats>(emptyStats);
   const [userPosition, setUserPosition] = useState<UserPosition | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [transactionStatus, setTransactionStatus] = useState<TransactionLifecycleStatus | null>(null);
+  const [transactionError, setTransactionError] = useState<string | null>(null);
 
   const client = useMemo(
     () =>
@@ -186,12 +191,24 @@ export const LumenLendProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   }, [refresh]);
 
   const withWallet = useCallback(
-    async (action: () => Promise<unknown>) => {
+    async (action: (onStatus: TransactionStatusCallback) => Promise<unknown>) => {
       if (!address || !connector) throw new Error('Wallet not connected');
       setIsLoading(true);
+      setTransactionError(null);
+      setTransactionStatus('preparing');
       try {
-        await action();
+        const result = await action(setTransactionStatus);
+        if ((result as { status?: string } | undefined)?.status === 'FAILED') {
+          setTransactionStatus('failed');
+          setTransactionError('The transaction was not successful.');
+          return;
+        }
+        setTransactionStatus('successful');
         await refresh();
+      } catch (err: unknown) {
+        setTransactionStatus('failed');
+        setTransactionError(err instanceof Error ? err.message : 'The transaction failed.');
+        throw err;
       } finally {
         setIsLoading(false);
       }
@@ -200,21 +217,26 @@ export const LumenLendProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   );
 
   const supplyUsdc = (amount: bigint) =>
-    withWallet(() => client.lendingPool.supply(address!, XLM, amount, connector!));
+    withWallet((onStatus) => client.lendingPool.supply(address!, XLM, amount, connector!, onStatus));
   const withdrawUsdc = (amount: bigint) =>
-    withWallet(() => client.lendingPool.withdraw(address!, XLM, amount, connector!));
+    withWallet((onStatus) => client.lendingPool.withdraw(address!, XLM, amount, connector!, onStatus));
   const borrowUsdc = (amount: bigint) =>
-    withWallet(() => client.lendingPool.borrow(address!, XLM, amount, connector!));
+    withWallet((onStatus) => client.lendingPool.borrow(address!, XLM, amount, connector!, onStatus));
   const repayUsdc = (amount: bigint) =>
-    withWallet(() => client.lendingPool.repay(address!, XLM, amount, connector!));
+    withWallet((onStatus) => client.lendingPool.repay(address!, XLM, amount, connector!, onStatus));
   const depositXlmCollateral = (amount: bigint) =>
-    withWallet(() => client.collateralVault.depositCollateral(address!, amount, connector!));
+    withWallet((onStatus) => client.collateralVault.depositCollateral(address!, amount, connector!, onStatus));
   const withdrawXlmCollateral = (amount: bigint) =>
-    withWallet(() => client.collateralVault.withdrawCollateral(address!, amount, connector!));
+    withWallet((onStatus) => client.collateralVault.withdrawCollateral(address!, amount, connector!, onStatus));
   const liquidatePosition = (borrower: string, repayAmount: bigint) =>
     withWallet(() => client.liquidationEngine.liquidate(address!, borrower, repayAmount, connector!));
   const setLiquidationThresholdBps = (newBps: number) =>
     withWallet(() => client.collateralVault.setLiquidationThreshold(address!, newBps, connector!));
+
+  const clearTransactionStatus = useCallback(() => {
+    setTransactionStatus(null);
+    setTransactionError(null);
+  }, []);
 
   const checkLiquidatable = useCallback(
     async (borrower: string) => {
@@ -241,6 +263,9 @@ export const LumenLendProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         userPosition,
         protocolStats,
         isLoading,
+        transactionStatus,
+        transactionError,
+        clearTransactionStatus,
         isAdmin,
         supplyUsdc,
         withdrawUsdc,

@@ -19,3 +19,13 @@ export interface ContractTransactionResult {
   status: 'SUCCESS' | 'FAILED';
   returnValue?: unknown;
 }
+
+export type TransactionLifecycleStatus =
+  | 'preparing'
+  | 'awaitingApproval'
+  | 'submitted'
+  | 'confirming'
+  | 'successful'
+  | 'failed';
+
+export type TransactionStatusCallback = (status: TransactionLifecycleStatus) => void;

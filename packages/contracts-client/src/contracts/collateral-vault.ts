@@ -1,6 +1,6 @@
 import { Address, nativeToScVal, scValToNative, xdr } from '@stellar/stellar-sdk';
 import type { StellarRpcClient, StellarTransactionService, WalletConnector } from '@lumenlend/stellar';
-import type { ContractTransactionResult } from '../types.js';
+import type { ContractTransactionResult, TransactionStatusCallback } from '../types.js';
 
 export class CollateralVaultClient {
   constructor(
@@ -12,7 +12,8 @@ export class CollateralVaultClient {
   async depositCollateral(
     userAddress: string,
     amount: bigint,
-    wallet: WalletConnector
+    wallet: WalletConnector,
+    onStatus?: TransactionStatusCallback
   ): Promise<ContractTransactionResult> {
     const args = [
       new Address(userAddress).toScVal(),
@@ -26,8 +27,11 @@ export class CollateralVaultClient {
       sourceAddress: userAddress,
     });
 
+    onStatus?.('awaitingApproval');
     const signedXdr = await wallet.signTransaction(tx.toXDR());
     const sendRes = await this.rpcClient.sendTransaction(xdr.TransactionEnvelope.fromXDR(signedXdr, 'base64') as any);
+    onStatus?.('submitted');
+    onStatus?.('confirming');
     const txResult = await this.txService.waitForTransaction(sendRes.hash);
 
     return {
@@ -40,7 +44,8 @@ export class CollateralVaultClient {
   async withdrawCollateral(
     userAddress: string,
     amount: bigint,
-    wallet: WalletConnector
+    wallet: WalletConnector,
+    onStatus?: TransactionStatusCallback
   ): Promise<ContractTransactionResult> {
     const args = [
       new Address(userAddress).toScVal(),
@@ -54,8 +59,11 @@ export class CollateralVaultClient {
       sourceAddress: userAddress,
     });
 
+    onStatus?.('awaitingApproval');
     const signedXdr = await wallet.signTransaction(tx.toXDR());
     const sendRes = await this.rpcClient.sendTransaction(xdr.TransactionEnvelope.fromXDR(signedXdr, 'base64') as any);
+    onStatus?.('submitted');
+    onStatus?.('confirming');
     const txResult = await this.txService.waitForTransaction(sendRes.hash);
 
     return {

@@ -5,6 +5,7 @@ import { Modal, Tabs, TokenInput, Button, HealthGauge } from '@lumenlend/ui';
 import { calculateHealthFactor, tokenAmountToUsd } from '@lumenlend/shared';
 import { useLumenLend } from '../../providers/LumenLendProvider';
 import { formatBps, formatTokenAmount, formatUsd } from '../../lib/formatters';
+import { TransactionStatus } from '../transactions/TransactionStatus';
 
 interface BorrowModalProps {
   isOpen: boolean;
@@ -17,7 +18,7 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
   onClose,
   initialTab = 'borrow',
 }) => {
-  const { userPosition, market, borrowUsdc, repayUsdc, isLoading } = useLumenLend();
+  const { userPosition, market, borrowUsdc, repayUsdc, isLoading, transactionStatus, transactionError, clearTransactionStatus } = useLumenLend();
   const [activeTab, setActiveTab] = useState<'borrow' | 'repay'>(initialTab);
   const [amountInput, setAmountInput] = useState('');
 
@@ -43,18 +44,19 @@ export const BorrowModal: React.FC<BorrowModalProps> = ({
 
   const handleAction = async () => {
     if (parsedAmountBigInt <= 0n) return;
+    clearTransactionStatus();
     if (activeTab === 'borrow') {
       await borrowUsdc(parsedAmountBigInt);
     } else {
       await repayUsdc(parsedAmountBigInt);
     }
     setAmountInput('');
-    onClose();
   };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Borrow & Repay Market" maxWidth="md">
       <div className="space-y-6">
+        <TransactionStatus status={transactionStatus} error={transactionError} />
         <Tabs tabs={tabs} activeTab={activeTab} onChange={setActiveTab} />
 
         <TokenInput
