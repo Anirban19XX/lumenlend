@@ -172,24 +172,20 @@ pnpm initialize:market
 > All contracts and financial calculations are provided for evaluation and development purposes. Do not deploy or risk real funds without professional third-party audits & formal security verification.
 
 ---
-## 11. Contract Addresses
+## 11. ## 📜 Contract Addresses
 
-| Contract                | Address                                                    |
-| ----------------------- | ---------------------------------------------------------- |
-| **Oracle Manager**      | `CAKTM6Q7FIMTBEMXC3P5KELGCWEX5S7VM5HIJPRUX4PH66OHSBO6BWC2` |
-| **Collateral Vault**    | `CD6MDTVKO5KMJEQIEGLAP53VLLKF2CZY4QLPPORYVU6WPDHT5NUBQJR3` |
-| **Lending Pool**        | `CCCU57MOTALZTW76ATNO4XTFZW2D3RH64UO4RRJWGO3WHK7MNPHUURVL` |
-| **Liquidation Engine**  | `CC3GG4QTTC22KCT35IK2HUKIRP7CZFLKFKWRQI3ID3I262BWYHDFWMD3` |
-| **Interest Rate Model** | `CAZUXLCCTASYDQEATWODPDGR62J3YSAGBK4TQ4QHOMZL3URRUUMSKFOZ` |
-| **XLM Asset (SAC)**     | `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` |
-
-###  View on Stellar Expert
-
-Replace `<address>` with the contract address:
-
-`https://stellar.expert/explorer/testnet/contract/<address>`
+| Contract                | Address                                                                                                                          |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| **Oracle Manager**      | [`CAKTM6Q7F...6BWC2`](https://stellar.expert/explorer/testnet/contract/CAKTM6Q7FIMTBEMXC3P5KELGCWEX5S7VM5HIJPRUX4PH66OHSBO6BWC2) |
+| **Collateral Vault**    | [`CD6MDTVK...BJR3`](https://stellar.expert/explorer/testnet/contract/CD6MDTVKO5KMJEQIEGLAP53VLLKF2CZY4QLPPORYVU6WPDHT5NUBQJR3)   |
+| **Lending Pool**        | [`CCCU57MO...URVL`](https://stellar.expert/explorer/testnet/contract/CCCU57MOTALZTW76ATNO4XTFZW2D3RH64UO4RRJWGO3WHK7MNPHUURVL)   |
+| **Liquidation Engine**  | [`CC3GG4QT...WMD3`](https://stellar.expert/explorer/testnet/contract/CC3GG4QTTC22KCT35IK2HUKIRP7CZFLKFKWRQI3ID3I262BWYHDFWMD3)   |
+| **Interest Rate Model** | [`CAZUXLCC...SKFOZ`](https://stellar.expert/explorer/testnet/contract/CAZUXLCCTASYDQEATWODPDGR62J3YSAGBK4TQ4QHOMZL3URRUUMSKFOZ)  |
+| **XLM Asset (SAC)**     | [`CDLZFC3S...CYSC`](https://stellar.expert/explorer/testnet/contract/CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC)   |
 
 > **Network:** Stellar Testnet
+> **Explorer:** [Stellar Expert](https://stellar.expert/explorer/testnet)
+
 
 
 ## 12. Protocol Roadmap
