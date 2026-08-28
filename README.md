@@ -172,25 +172,25 @@ pnpm initialize:market
 > All contracts and financial calculations are provided for evaluation and development purposes. Do not deploy or risk real funds without professional third-party audits & formal security verification.
 
 ---
-## 11. Contract addresses:
+## 11. ## 📜 Contract Addresses
 
-┌─────────────────────┬──────────────────────────────────────────────────────────┐
-│      Contract       │                         Address                          │
-├─────────────────────┼──────────────────────────────────────────────────────────┤
-│ Oracle Manager      │ CAKTM6Q7FIMTBEMXC3P5KELGCWEX5S7VM5HIJPRUX4PH66OHSBO6BWC2 │
-├─────────────────────┼──────────────────────────────────────────────────────────┤
-│ Collateral Vault    │ CD6MDTVKO5KMJEQIEGLAP53VLLKF2CZY4QLPPORYVU6WPDHT5NUBQJR3 │
-├─────────────────────┼──────────────────────────────────────────────────────────┤
-│ Lending Pool        │ CCCU57MOTALZTW76ATNO4XTFZW2D3RH64UO4RRJWGO3WHK7MNPHUURVL │
-├─────────────────────┼──────────────────────────────────────────────────────────┤
-│ Liquidation Engine  │ CC3GG4QTTC22KCT35IK2HUKIRP7CZFLKFKWRQI3ID3I262BWYHDFWMD3 │
-├─────────────────────┼──────────────────────────────────────────────────────────┤
-│ Interest Rate Model │ CAZUXLCCTASYDQEATWODPDGR62J3YSAGBK4TQ4QHOMZL3URRUUMSKFOZ │
-├─────────────────────┼──────────────────────────────────────────────────────────┤
-│ XLM Asset (SAC)     │ CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC │
-└─────────────────────┴──────────────────────────────────────────────────────────┘
+| Contract                | Address                                                    |
+| ----------------------- | ---------------------------------------------------------- |
+| **Oracle Manager**      | `CAKTM6Q7FIMTBEMXC3P5KELGCWEX5S7VM5HIJPRUX4PH66OHSBO6BWC2` |
+| **Collateral Vault**    | `CD6MDTVKO5KMJEQIEGLAP53VLLKF2CZY4QLPPORYVU6WPDHT5NUBQJR3` |
+| **Lending Pool**        | `CCCU57MOTALZTW76ATNO4XTFZW2D3RH64UO4RRJWGO3WHK7MNPHUURVL` |
+| **Liquidation Engine**  | `CC3GG4QTTC22KCT35IK2HUKIRP7CZFLKFKWRQI3ID3I262BWYHDFWMD3` |
+| **Interest Rate Model** | `CAZUXLCCTASYDQEATWODPDGR62J3YSAGBK4TQ4QHOMZL3URRUUMSKFOZ` |
+| **XLM Asset (SAC)**     | `CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC` |
 
-View on explorer: https://stellar.expert/explorer/testnet/contract/<address>
+### 🔍 View on Stellar Expert
+
+Replace `<address>` with the contract address:
+
+`https://stellar.expert/explorer/testnet/contract/<address>`
+
+> **Network:** Stellar Testnet
+
 
 ## 12. Protocol Roadmap
 
