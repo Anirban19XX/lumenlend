@@ -44,8 +44,9 @@ The initial implementation powers the **XLM Collateral → USDC Borrowing** mark
 <img width="1917" height="867" alt="Screenshot 2026-08-28 152634" src="https://github.com/user-attachments/assets/6b3c614f-ebfa-4343-a2b9-7d9c2b73654f" />
 
 ---
-### c. Lending Markets
-<img width="1913" height="856" alt="Screenshot 2026-08-28 152702" src="https://github.com/user-attachments/assets/523f48ff-cb71-478a-9f1b-b3f443cc9f25" />
+### c. Managing Liquidity and Collateral Interface
+<img width="1919" height="869" alt="Screenshot 2026-08-29 121443" src="https://github.com/user-attachments/assets/0c3df77a-f1a4-4da8-9921-c43c0779a3d7" />
+
 
 
 ## 4. Demo Video Link
