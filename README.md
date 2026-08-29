@@ -192,6 +192,8 @@ pnpm initialize:market
 ## Proof of Wallet interactions: 
 https://drive.google.com/file/d/1KqPnu-v26nrcC9-anhGpVbynjwm8Dvtd/view?usp=sharing
 
+## Basic User feedback Summary:
+https://docs.google.com/spreadsheets/d/1fkUcg95Z7jc6InB0QWGICK_OG3hOaueG/edit?usp=sharing&ouid=109394129990558146885&rtpof=true&sd=true
 
 ## Protocol Roadmap
 
