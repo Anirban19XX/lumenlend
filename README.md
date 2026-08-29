@@ -13,7 +13,7 @@
 
 ---
 
-## 1. What is LumenLend?
+## What is LumenLend?
 
 **LumenLend** is a production-grade, permissionless decentralized lending protocol engineered specifically for the **Stellar** network using **Soroban** smart contracts.
 
@@ -25,7 +25,7 @@ The initial implementation powers the **XLM Collateral → USDC Borrowing** mark
 
 ---
 
-## 2. Why Stellar Soroban?
+## Why Stellar Soroban?
 
 1. **Sub-second Settlement & Deterministic Finality**: Instant collateral locking and repayment confirmations.
 2. **Predictable, Micro-cent Fees**: Eliminates high gas spikes that often lead to cascading liquidations on other chains.
@@ -33,7 +33,7 @@ The initial implementation powers the **XLM Collateral → USDC Borrowing** mark
 4. **Rust-Powered Contract Safety**: Memory safety, explicit authorization trees (`require_auth`), and resource metering.
 
 ---
-## 3. Screenshots
+## Screenshots
 
 ### a. Dashboard
 <img width="1917" height="871" alt="Screenshot 2026-08-28 152606" src="https://github.com/user-attachments/assets/9c4ea808-eee8-4165-9a20-badd52f0b008" />
@@ -49,10 +49,10 @@ The initial implementation powers the **XLM Collateral → USDC Borrowing** mark
 
 
 
-## 4. Demo Video Link
+## Demo Video Link
 Link to video: https://drive.google.com/file/d/1R9EbBJlVXamanIlkkRtWPkQPCr5xIZWb/view?usp=sharing
 
-## 5. Architecture
+## Architecture
 
 ```
 lumenlend/
@@ -82,7 +82,7 @@ lumenlend/
 
 ---
 
-## 6. Quickstart & Local Development
+## Quickstart & Local Development
 
 ### Prerequisites
 - Node.js >= 20.0.0
@@ -106,7 +106,7 @@ cp .env.example .env
 
 ---
 
-## 7. Running Tests
+## Running Tests
 
 ```bash
 # Run all unit and integration test suites
@@ -120,7 +120,7 @@ pnpm --filter @lumenlend/tests test
 
 ---
 
-## 8. Building Contracts
+## Building Contracts
 
 ```bash
 # Compile Rust contracts to WASM targets
@@ -132,7 +132,7 @@ pnpm generate:bindings
 
 ---
 
-## 9. Running Applications
+## Running Applications
 
 ```bash
 # Start Next.js Frontend (http://localhost:3000)
@@ -144,7 +144,7 @@ pnpm dev:indexer
 
 ---
 
-## 10. Deploying to Stellar Testnet
+## Deploying to Stellar Testnet
 
 ```bash
 # 1. Deploy all protocol contracts
@@ -156,7 +156,7 @@ pnpm initialize:market
 
 ---
 
-## 11. Smart Contract Architecture
+## Smart Contract Architecture
 
 | Contract | Core Responsibilities | Key Functions |
 | :--- | :--- | :--- |
@@ -168,14 +168,14 @@ pnpm initialize:market
 
 ---
 
-## 12. Security Disclaimer
+## Security Disclaimer
 
 > [!WARNING]
 > **LumenLend is experimental, un-audited software.**
 > All contracts and financial calculations are provided for evaluation and development purposes. Do not deploy or risk real funds without professional third-party audits & formal security verification.
 
 ---
-## 13. Contract Addresses
+## Contract Addresses
 
 | Contract                | Address                                                                                                                          |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -189,9 +189,11 @@ pnpm initialize:market
 > **Network:** Stellar Testnet
 > **Explorer:** [Stellar Expert](https://stellar.expert/explorer/testnet)
 
+## Proof of Wallet interactions: 
+https://drive.google.com/file/d/1KqPnu-v26nrcC9-anhGpVbynjwm8Dvtd/view?usp=sharing
 
 
-## 14. Protocol Roadmap
+## Protocol Roadmap
 
 - [x] **Milestone 1**: Monorepo architecture, Soroban contracts, Freighter wallet connector, Next.js frontend, Indexer, and integration tests.
 - [ ] **Milestone 2**: Testnet deployment verification, Pyth Network oracle live feed integration, and SAC token multi-asset support.
