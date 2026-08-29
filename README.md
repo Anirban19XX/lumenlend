@@ -33,23 +33,25 @@ The initial implementation powers the **XLM Collateral → USDC Borrowing** mark
 4. **Rust-Powered Contract Safety**: Memory safety, explicit authorization trees (`require_auth`), and resource metering.
 
 ---
-## 📸 Screenshots
+## 3. Screenshots
 
-### 1. Dashboard
+### a. Dashboard
 <img width="1917" height="871" alt="Screenshot 2026-08-28 152606" src="https://github.com/user-attachments/assets/9c4ea808-eee8-4165-9a20-badd52f0b008" />
 
 ---
 
-### 2. Available Markets
+### b. Available Markets
 <img width="1917" height="867" alt="Screenshot 2026-08-28 152634" src="https://github.com/user-attachments/assets/6b3c614f-ebfa-4343-a2b9-7d9c2b73654f" />
 
 ---
-### 3. Lending Markets
+### c. Lending Markets
 <img width="1913" height="856" alt="Screenshot 2026-08-28 152702" src="https://github.com/user-attachments/assets/523f48ff-cb71-478a-9f1b-b3f443cc9f25" />
 
 
+## 4. Demo Video Link
+Link to video: https://drive.google.com/file/d/1R9EbBJlVXamanIlkkRtWPkQPCr5xIZWb/view?usp=sharing
 
-## 3. Architecture
+## 5. Architecture
 
 ```
 lumenlend/
@@ -79,7 +81,7 @@ lumenlend/
 
 ---
 
-## 4. Quickstart & Local Development
+## 6. Quickstart & Local Development
 
 ### Prerequisites
 - Node.js >= 20.0.0
@@ -103,7 +105,7 @@ cp .env.example .env
 
 ---
 
-## 5. Running Tests
+## 7. Running Tests
 
 ```bash
 # Run all unit and integration test suites
@@ -117,7 +119,7 @@ pnpm --filter @lumenlend/tests test
 
 ---
 
-## 6. Building Contracts
+## 8. Building Contracts
 
 ```bash
 # Compile Rust contracts to WASM targets
@@ -129,7 +131,7 @@ pnpm generate:bindings
 
 ---
 
-## 7. Running Applications
+## 9. Running Applications
 
 ```bash
 # Start Next.js Frontend (http://localhost:3000)
@@ -141,7 +143,7 @@ pnpm dev:indexer
 
 ---
 
-## 8. Deploying to Stellar Testnet
+## 10. Deploying to Stellar Testnet
 
 ```bash
 # 1. Deploy all protocol contracts
@@ -153,7 +155,7 @@ pnpm initialize:market
 
 ---
 
-## 9. Smart Contract Architecture
+## 11. Smart Contract Architecture
 
 | Contract | Core Responsibilities | Key Functions |
 | :--- | :--- | :--- |
@@ -165,14 +167,14 @@ pnpm initialize:market
 
 ---
 
-## 10. Security Disclaimer
+## 12. Security Disclaimer
 
 > [!WARNING]
 > **LumenLend is experimental, un-audited software.**
 > All contracts and financial calculations are provided for evaluation and development purposes. Do not deploy or risk real funds without professional third-party audits & formal security verification.
 
 ---
-## 11. Contract Addresses
+## 13. Contract Addresses
 
 | Contract                | Address                                                                                                                          |
 | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
@@ -188,7 +190,7 @@ pnpm initialize:market
 
 
 
-## 12. Protocol Roadmap
+## 14. Protocol Roadmap
 
 - [x] **Milestone 1**: Monorepo architecture, Soroban contracts, Freighter wallet connector, Next.js frontend, Indexer, and integration tests.
 - [ ] **Milestone 2**: Testnet deployment verification, Pyth Network oracle live feed integration, and SAC token multi-asset support.
